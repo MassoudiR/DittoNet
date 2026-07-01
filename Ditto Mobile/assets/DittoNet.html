@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DittoNet Browser - Official Technical Architecture & Master Guide</title>
+    <style>
+        :root {
+            --bg-primary: #07070E;
+            --bg-secondary: #0F101E;
+            --card-bg: rgba(22, 24, 44, 0.65);
+            --card-hover: rgba(32, 35, 64, 0.85);
+            --accent-teal: #00F5D4;
+            --accent-cyan: #00E5FF;
+            --accent-purple: #9D4EDD;
+            --accent-pink: #FF007F;
+            --accent-amber: #FFB703;
+            --text-main: #FFFFFF;
+            --text-muted: #A0A6C0;
+            --border-color: rgba(0, 229, 255, 0.18);
+            --glow-cyan: 0 0 25px rgba(0, 229, 255, 0.3);
+            --glow-purple: 0 0 25px rgba(157, 78, 221, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            padding-bottom: 100px;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Background Glows */
+        .ambient-glow-1 {
+            position: fixed;
+            top: -150px;
+            left: -150px;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(157, 78, 221, 0.18) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(40px);
+        }
+        .ambient-glow-2 {
+            position: fixed;
+            bottom: 10%;
+            right: -150px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(0, 245, 212, 0.15) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(40px);
+        }
+
+        /* Navigation / Header */
+        header {
+            background: rgba(15, 16, 30, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 18px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: #000;
+            font-weight: 900;
+            font-size: 18px;
+            padding: 8px 14px;
+            border-radius: 12px;
+            box-shadow: var(--glow-cyan);
+            letter-spacing: 1px;
+        }
+
+        .logo-text {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #FFFFFF, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1.5px;
+        }
+
+        .status-pill {
+            background: rgba(0, 245, 212, 0.12);
+            border: 1px solid var(--accent-teal);
+            color: var(--accent-teal);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 12px rgba(0, 245, 212, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-teal);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 245, 212, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(0, 245, 212, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 245, 212, 0); }
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 60px 28px 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 42px;
+            font-weight: 900;
+            margin-bottom: 18px;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #FFFFFF 30%, var(--accent-cyan) 80%, var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 750px;
+            margin: 0 auto 30px;
+        }
+
+        /* Container Layout */
+        .container {
+            max-width: 1050px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .section-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: #FFF;
+            margin: 48px 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 2px solid rgba(255,255,255,0.08);
+            padding-bottom: 12px;
+        }
+
+        .section-title span {
+            color: var(--accent-cyan);
+        }
+
+        /* Cards Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 22px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 26px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            background: var(--card-hover);
+            border-color: var(--accent-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+            display: inline-block;
+            padding: 12px;
+            background: rgba(0, 229, 255, 0.1);
+            border-radius: 14px;
+            border: 1px solid rgba(0, 229, 255, 0.2);
+        }
+
+        .card h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #FFF;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 14.5px;
+            line-height: 1.6;
+        }
+
+        /* Feature Highlight Box */
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(157, 78, 221, 0.15), rgba(0, 229, 255, 0.1));
+            border: 1px solid var(--accent-purple);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 35px 0;
+            box-shadow: var(--glow-purple);
+        }
+
+        .highlight-box h3 {
+            color: var(--accent-cyan);
+            font-size: 22px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .highlight-box ul {
+            list-style: none;
+            margin-top: 16px;
+        }
+
+        .highlight-box li {
+            position: relative;
+            padding-left: 26px;
+            margin-bottom: 12px;
+            color: #E2E8F0;
+            font-size: 15px;
+        }
+
+        .highlight-box li::before {
+            content: '⚡';
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: var(--accent-amber);
+        }
+
+        /* Code / Workflow Steps */
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 18px;
+            background: rgba(15, 16, 30, 0.6);
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 20px;
+            border-radius: 16px;
+            align-items: flex-start;
+        }
+
+        .step-num {
+            background: var(--accent-cyan);
+            color: #000;
+            font-weight: 900;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        .step-content h4 {
+            color: #FFF;
+            font-size: 17px;
+            margin-bottom: 6px;
+        }
+
+        .step-content p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        code {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            color: var(--accent-teal);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13.5px;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 70px;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 40px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        footer strong {
+            color: var(--accent-cyan);
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 30px; }
+            header { padding: 14px 18px; }
+            .grid, .wallet-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Support Section */
+        .github-box {
+            background: rgba(15, 16, 30, 0.85);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 18px;
+            padding: 24px;
+            text-align: center;
+            margin: 30px 0;
+            box-shadow: var(--glow-cyan);
+        }
+        .github-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: #000;
+            font-weight: 900;
+            padding: 14px 28px;
+            border-radius: 14px;
+            text-decoration: none;
+            margin-top: 14px;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0, 229, 255, 0.4);
+        }
+        .wallet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+        .wallet-card {
+            background: rgba(22, 24, 44, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .wallet-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--accent-teal);
+            margin-bottom: 14px;
+        }
+        .qr-box {
+            background: #FFF;
+            padding: 12px;
+            border-radius: 16px;
+            display: inline-block;
+            margin-bottom: 16px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.15);
+        }
+        .qr-img {
+            width: 180px;
+            height: 180px;
+            display: block;
+        }
+        .wallet-addr {
+            font-family: monospace;
+            font-size: 13px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px;
+            border-radius: 10px;
+            color: #FFF;
+            word-break: break-all;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-badge">DN</div>
+            <div class="logo-text">DITTONET BROWSER</div>
+        </div>
+        <div class="status-pill">
+            <div class="status-dot"></div>
+            <span>ENGINE ARMED</span>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>Advanced Mobile Security Sandbox & HTTP Traffic Interceptor</h1>
+        <p>Welcome to the official architecture guide and workflow optimization manual for <strong>DittoNet Browser</strong>. Designed for penetration testers, API engineers, and mobile security researchers.</p>
+    </section>
+
+    <div class="container">
+
+        <!-- Core Philosophy -->
+        <div class="section-title"><span>01.</span> Core Engine Architecture</div>
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon">🛡️</div>
+                <h3>Isolated Web Sandbox</h3>
+                <p>Every tab operates within a hardened WebView instance equipped with custom hooks, real-time DOM mutation monitoring, and independent navigation states.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🔄</div>
+                <h3>Transparent Proxy Bridge</h3>
+                <p>Seamlessly tunnel HTTP and HTTPS traffic through external desktops (Burp Suite, mitmproxy, OWASP ZAP) or execute deep local interception without root access.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <h3>Zero-Latency Monkey Patching</h3>
+                <p>Inject custom JavaScript hooks at <code>AT_DOCUMENT_START</code> before the DOM finishes constructing. Override browser headers, user agents, and cryptographic APIs.</p>
+            </div>
+        </div>
+
+        <!-- Easter Egg & DittoMan -->
+        <div class="highlight-box">
+            <h3>🛸 Unlocking DittoMan REST Suite (Easter Egg)</h3>
+            <p>DittoNet Browser features an embedded, high-performance REST API Client named <strong>DittoMan</strong> for immediate API probing and debugging right inside your browser.</p>
+            <ul>
+                <li><strong>How to Unlock:</strong> Navigate to the Home Dashboard and press and hold the central glowing <strong>DittoNet Logo</strong> for exactly 3 seconds.</li>
+                <li><strong>Particle Acceleration:</strong> Watch as scattered cosmic particles emerge with increasing velocity until the DittoMan portal triggers with haptic vibration.</li>
+                <li><strong>Probing Capabilities:</strong> Craft custom GET, POST, PUT, and DELETE requests, inspect raw response bodies, modify headers, and generate instant <code>cURL</code> commands.</li>
+                <li><strong>Session Persistence:</strong> All custom headers, payload bodies, and active tabs inside DittoMan automatically save to persistent storage across restarts.</li>
+            </ul>
+        </div>
+
+        <!-- Optimizing Usage -->
+        <div class="section-title"><span>02.</span> Optimizing Functions & Workflow</div>
+        <div class="step-list">
+            <div class="step-item">
+                <div class="step-num">A</div>
+                <div class="step-content">
+                    <h4>Multi-Tab Memory Optimization</h4>
+                    <p>DittoNet utilizes an intelligent <code>IndexedStack</code> preservation controller. Background tabs retain their scroll offset, form data, and DOM state without draining CPU cycles. Tap the tab counter pill in the top navbar to switch or spawn new independent sessions.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-num">B</div>
+                <div class="step-content">
+                    <h4>Glassmorphic Link Interception & Text Selection</h4>
+                    <p>Long-press any anchor tag or URL string across web pages to invoke the custom frosted glass modal sheet. Effortlessly copy clean link URLs or launch them directly into background tabs while preserving native text selection for standard body content.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-num">C</div>
+                <div class="step-content">
+                    <h4>Per-Origin Granular Permissions</h4>
+                    <p>Tap the SSL Lock icon inside the expandable URL bar to configure site-specific security policies. Toggle Camera, Microphone, Geolocation, and JavaScript permissions individually per hostname to prevent unwanted fingerprinting.</p>
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-num">D</div>
+                <div class="step-content">
+                    <h4>HAR 1.2 Traffic Exporting</h4>
+                    <p>Capture full request and response payloads, status codes, timing metrics, and headers. Open the Network Suite menu to export complete sessions as standardized <code>.har</code> files compatible with Wireshark and Google Chrome DevTools.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Capabilities -->
+        <div class="section-title"><span>03.</span> Security Suite Features</div>
+        <div class="grid">
+            <div class="card">
+                <div class="card-icon">🔓</div>
+                <h3>SSL Certificate Bypass</h3>
+                <p>Bypass restrictive SSL pinning policies on development servers and staging endpoints with a single tap from the Network Shield configuration screen.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🎭</div>
+                <h3>User-Agent Spoofing</h3>
+                <p>Instantly switch browser fingerprints between Desktop Chrome, iOS Safari, GoogleBot Crawler, or custom strings to bypass mobile redirection screens.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">📜</div>
+                <h3>Integrated vConsole</h3>
+                <p>Inject a floating console viewer directly into live web pages to inspect JavaScript console logs, network errors, and LocalStorage values on mobile.</p>
+            </div>
+        </div>
+
+        <!-- Open Source & Support Me -->
+        <div class="section-title"><span>04.</span> Open Source & Support Me</div>
+        <div class="github-box">
+            <h3 style="font-size: 24px; margin-bottom: 8px;">⭐ Proudly Open Source on GitHub</h3>
+            <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto;">Explore the source code, report issues, contribute feature requests, and follow development updates directly on GitHub repository.</p>
+            <a href="https://github.com/MassoudiR/DittoNet" target="_blank" class="github-btn">View Repository: MassoudiR/DittoNet</a>
+        </div>
+
+        <h3 style="text-align: center; font-size: 20px; margin: 30px 0 10px; color: var(--accent-cyan);">💖 Support Project Development</h3>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">If DittoNet helps your research or daily security auditing, consider supporting ongoing development via cryptocurrency donations:</p>
+
+        <div class="wallet-grid">
+            <div class="wallet-card">
+                <div class="wallet-title">⚡ USDT (TRON TRC20)</div>
+                <div class="qr-box">
+                    <img src="USDT-QR.png" alt="USDT TRC20 QR Code" class="qr-img">
+                </div>
+                <div class="wallet-addr">TNhAhjhvw1c1CyayxreLNxhD8u8UViLiY5</div>
+            </div>
+            <div class="wallet-card">
+                <div class="wallet-title">₿ Bitcoin (BTC)</div>
+                <div class="qr-box">
+                    <img src="BTC-QR.png" alt="BTC QR Code" class="qr-img">
+                </div>
+                <div class="wallet-addr">16xTx25nuwDQ9gKwumJgjJCfRXVgag27vP</div>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>© 2026 <strong>DITTONET BROWSER PROJECT</strong> • Built for Mobile Privacy & Open Web Transparency</p>
+        <p style="margin-top: 6px; font-size: 12px; opacity: 0.6;">Hardened Flutter Sandbox Client v1.0.0</p>
+    </footer>
+
+</body>
+</html>

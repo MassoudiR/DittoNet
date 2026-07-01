@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 DittoNet Mobile Workspace - Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CodeMirror 5 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #080c14; color: #f1f5f9; }
+        .glass-panel { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.06); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
+
+        .CodeMirror {
+            height: 340px;
+            border-radius: 0.75rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13.5px;
+            line-height: 1.5;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 2px 12px rgba(0,0,0,0.6);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-[#080c14] relative" x-data="mobileWorkspaceApp()">
+
+    <!-- Vibrant glowing background orbs -->
+    <div class="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] rounded-full bg-purple-600/15 blur-[140px] pointer-events-none"></div>
+    <div class="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] rounded-full bg-cyan-600/15 blur-[140px] pointer-events-none"></div>
+
+    <!-- Top Header Bar -->
+    <div class="p-5 border-b border-white/5 flex justify-between items-center glass-panel sticky top-0 z-20 shadow-xl">
+        <div class="flex items-center space-x-3">
+            <span class="text-3xl animate-pulse">📱</span>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-300">DITTONET MOBILE WORKSPACE</h1>
+                <p class="text-xs text-slate-400 font-medium">Live Push/Pull Command Center & Sync Engine</p>
+            </div>
+        </div>
+
+        <!-- Navigation & Master Sync Buttons -->
+        <div class="flex items-center space-x-3">
+            <a href="/" class="px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-slate-300 hover:text-white font-bold transition-all shadow-md">← Desktop</a>
+            <a href="/docs" class="px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-cyan-300 font-bold transition-all shadow-md">📖 Docs</a>
+            <a href="https://github.com/MassoudiR/DittoNet" target="_blank" class="px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-white font-bold transition-all shadow-md flex items-center gap-1.5"><span>⭐</span> GitHub</a>
+            <button @click="supportModal = true" class="px-3.5 py-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-yellow-500/40 rounded-lg text-sm text-yellow-300 font-bold transition-all shadow-md flex items-center gap-1.5">💛 Support Me</button>
+            
+            <button @click="checkRemoteUpdates(true)" :disabled="checkingSync" class="px-4 py-2 bg-slate-800/90 hover:bg-slate-700 border border-cyan-500/40 rounded-lg text-sm text-cyan-300 font-bold transition-all shadow-md flex items-center gap-2 active:scale-95">
+                <span :class="checkingSync ? 'animate-spin' : ''">🔄</span>
+                <span x-text="checkingSync ? 'Checking...' : 'Check Pushes'"></span>
+            </button>
+
+            <button @click="saveAndSync()" :disabled="saving" class="relative group overflow-hidden px-5 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white font-extrabold shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all transform active:scale-95 flex items-center space-x-2 text-sm">
+                <span x-show="!saving" class="flex items-center"><span class="mr-1.5">⚡</span> SAVE & PUSH</span>
+                <span x-show="saving" class="flex items-center"><span class="animate-spin mr-1.5">🔄</span> PUSHING...</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 overflow-y-auto p-8 relative z-10 max-w-7xl mx-auto w-full flex flex-col space-y-6">
+
+        <!-- Tabs Navigation & Live Polling Status -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
+            <div class="flex space-x-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-800 shadow-inner">
+                <button @click="activeTab = 'rules'" :class="activeTab === 'rules' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold' : 'text-slate-400 hover:text-white font-medium'" class="px-6 py-2.5 rounded-lg text-sm transition-all flex items-center space-x-2">
+                    <span>🛡️</span><span>Local Rules</span>
+                    <span class="bg-black/30 px-2 py-0.5 rounded-full text-xs ml-1" x-text="workspace.local_rules.length"></span>
+                </button>
+                <button @click="activeTab = 'hooks'" :class="activeTab === 'hooks' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30 font-bold' : 'text-slate-400 hover:text-white font-medium'" class="px-6 py-2.5 rounded-lg text-sm transition-all flex items-center space-x-2">
+                    <span>⚡</span><span>JS Hook Scripts</span>
+                    <span class="bg-black/30 px-2 py-0.5 rounded-full text-xs ml-1" x-text="workspace.js_hooks.length"></span>
+                </button>
+            </div>
+
+            <div class="flex items-center space-x-3 text-xs font-mono bg-slate-900/70 px-4 py-2 rounded-lg border border-slate-800 shadow-sm">
+                <span class="flex items-center text-emerald-400 font-bold"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span> Auto-Pull Active (3s)</span>
+                <span class="text-slate-700">|</span>
+                <span class="text-slate-400">Synced: <span class="text-cyan-400 font-bold" x-text="workspace.timestamp ? new Date(workspace.timestamp).toLocaleTimeString() : 'Never'"></span></span>
+            </div>
+        </div>
+
+        <!-- TAB 1: LOCAL RULES -->
+        <div x-show="activeTab === 'rules'" class="space-y-6 transition-all">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Mobile Local Rules</h2>
+                    <p class="text-sm text-slate-400">Rules applied locally on the Flutter device HTTP layer before network dispatch. Auto-saved on edit.</p>
+                </div>
+                <button @click="openAddRule()" class="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 rounded-lg text-sm font-bold transition-all shadow hover:shadow-purple-500/20 flex items-center gap-2">
+                    <span>➕</span> Add Local Rule
+                </button>
+            </div>
+
+            <!-- Rules Table -->
+            <div class="glass-panel rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/90 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800 font-bold">
+                            <th class="py-4 px-6">Active</th>
+                            <th class="py-4 px-6">Name</th>
+                            <th class="py-4 px-6">Target Pattern</th>
+                            <th class="py-4 px-6">Phase</th>
+                            <th class="py-4 px-6">Method</th>
+                            <th class="py-4 px-6">Action Type</th>
+                            <th class="py-4 px-6 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-sm font-medium">
+                        <template x-if="workspace.local_rules.length === 0">
+                            <tr>
+                                <td colspan="7" class="py-12 text-center text-slate-500 italic">No mobile local rules configured. Click "Add Local Rule" above.</td>
+                            </tr>
+                        </template>
+                        <template x-for="(rule, idx) in workspace.local_rules" :key="idx">
+                            <tr class="hover:bg-slate-800/40 transition-colors group">
+                                <td class="py-4 px-6">
+                                    <input type="checkbox" x-model="rule.active" @change="saveAndSync()" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500 cursor-pointer">
+                                </td>
+                                <td class="py-4 px-6 font-bold text-white" x-text="rule.name"></td>
+                                <td class="py-4 px-6 font-mono text-cyan-300 text-xs bg-slate-950/40 px-3 py-1 rounded w-max" x-text="rule.targetPattern"></td>
+                                <td class="py-4 px-6 text-slate-300" x-text="rule.phase || 'Both'"></td>
+                                <td class="py-4 px-6 font-mono text-xs font-bold" x-text="rule.method || 'ANY'"></td>
+                                <td class="py-4 px-6">
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold shadow-sm"
+                                        :class="{
+                                            'bg-red-500/20 text-red-400 border border-red-500/30': rule.actionType === 'BLOCK',
+                                            'bg-green-500/20 text-green-400 border border-green-500/30': rule.actionType === 'ALLOW',
+                                            'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30': rule.actionType === 'MATCH_REPLACE',
+                                            'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30': rule.actionType === 'HEADER_INJECT',
+                                            'bg-blue-500/20 text-blue-400 border border-blue-500/30': rule.actionType === 'REDIRECT',
+                                            'bg-orange-500/20 text-orange-400 border border-orange-500/30': rule.actionType === 'BODY_REPLACE'
+                                        }" x-text="rule.actionType"></span>
+                                </td>
+                                <td class="py-4 px-6 text-right space-x-2">
+                                    <button @click="openEditRule(idx)" class="px-3 py-1 rounded bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-xs font-bold transition-all border border-blue-500/30">✏️ Edit</button>
+                                    <button @click="deleteRule(idx)" class="px-3 py-1 rounded bg-red-600/20 hover:bg-red-600/40 text-red-300 text-xs font-bold transition-all border border-red-500/30">🗑️ Delete</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 2: JS HOOK SCRIPTS -->
+        <div x-show="activeTab === 'hooks'" class="space-y-6 transition-all">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-white">JavaScript Monkey Patch Hooks</h2>
+                    <p class="text-sm text-slate-400">Dynamic JS scripts executed inside the client runtime engine upon matching request/response triggers.</p>
+                </div>
+                <button @click="openAddHook()" class="px-4 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 rounded-lg text-sm font-bold transition-all shadow hover:shadow-cyan-500/20 flex items-center gap-2">
+                    <span>⚡</span> Create JS Hook
+                </button>
+            </div>
+
+            <!-- Hooks Grid Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <template x-if="workspace.js_hooks.length === 0">
+                    <div class="col-span-full py-16 text-center text-slate-500 italic glass-panel rounded-2xl">No JavaScript hooks registered. Click "Create JS Hook" above.</div>
+                </template>
+                <template x-for="(hook, idx) in workspace.js_hooks" :key="idx">
+                    <div class="glass-panel rounded-2xl p-6 flex flex-col justify-between border border-slate-800 hover:border-cyan-500/40 transition-all shadow-xl group relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1.5 h-full" :class="hook.active ? 'bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.8)]' : 'bg-slate-700'"></div>
+                        
+                        <div>
+                            <div class="flex justify-between items-start mb-3 pl-2">
+                                <h3 class="font-extrabold text-white text-lg group-hover:text-cyan-300 transition-colors" x-text="hook.name"></h3>
+                                <input type="checkbox" x-model="hook.active" @change="saveAndSync()" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-cyan-500 cursor-pointer">
+                            </div>
+                            
+                            <div class="mb-4 pl-2">
+                                <span class="text-xs font-mono text-slate-400 block mb-1">Target Pattern:</span>
+                                <span class="font-mono text-cyan-300 text-xs bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800 inline-block break-all" x-text="hook.targetPattern"></span>
+                            </div>
+
+                            <div class="bg-slate-950/90 rounded-lg p-3 font-mono text-xs text-emerald-400 h-28 overflow-hidden relative border border-slate-900 shadow-inner mb-4">
+                                <pre x-text="hook.code"></pre>
+                                <div class="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-slate-950 to-transparent"></div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end space-x-2 pt-4 border-t border-slate-800/80">
+                            <button @click="openEditHook(idx)" class="px-4 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-xs font-bold transition-all border border-blue-500/30">🛠️ Open IDE Editor</button>
+                            <button @click="deleteHook(idx)" class="px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-300 text-xs font-bold transition-all border border-red-500/30">🗑️</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL 1: RULE EDITOR -->
+    <div x-show="ruleModal.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in" @keydown.escape.window="ruleModal.open = false">
+        <div class="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-xl border border-purple-500/40 bg-[#0f172a]" @click.away="ruleModal.open = false">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+                <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
+                    <span>🛡️</span> <span x-text="ruleModal.isEdit ? 'Edit Mobile Local Rule' : 'Add Mobile Local Rule'"></span>
+                </h3>
+                <button @click="ruleModal.open = false" class="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            <div class="space-y-4 text-sm font-medium">
+                <div>
+                    <label class="block text-slate-300 mb-1">Rule Name</label>
+                    <input type="text" x-model="ruleModal.data.name" placeholder="e.g., Bypass Auth Check" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 mb-1">Target Pattern (URL wildcard/regex)</label>
+                    <input type="text" x-model="ruleModal.data.targetPattern" placeholder="*api.mysite.com/auth*" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-cyan-300 font-mono focus:outline-none focus:border-purple-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-slate-300 mb-1">Phase</label>
+                        <select x-model="ruleModal.data.phase" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 font-bold">
+                            <option value="Both">🔄 Both (Req & Res)</option>
+                            <option value="Request">↗️ Request Only</option>
+                            <option value="Response">↙️ Response Only</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 mb-1">Method</label>
+                        <select x-model="ruleModal.data.method" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 font-bold">
+                            <option value="ANY">🌐 ANY</option>
+                            <option value="GET">🟢 GET</option>
+                            <option value="POST">🔵 POST</option>
+                            <option value="PUT">🟡 PUT</option>
+                            <option value="DELETE">🔴 DELETE</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 mb-1">Action Type</label>
+                    <select x-model="ruleModal.data.actionType" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 font-bold">
+                        <option value="ALLOW">✅ ALLOW</option>
+                        <option value="BLOCK">⛔ BLOCK REQUEST</option>
+                        <option value="REDIRECT">🔀 REDIRECT URL</option>
+                        <option value="MATCH_REPLACE">📝 STRING MATCH & REPLACE</option>
+                        <option value="HEADER_INJECT">💉 INJECT CUSTOM HEADER</option>
+                        <option value="BODY_REPLACE">📦 OVERWRITE FULL BODY</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic Match & Replace Inputs -->
+                <div x-show="ruleModal.data.actionType === 'MATCH_REPLACE' || ruleModal.data.actionType === 'HEADER_INJECT' || ruleModal.data.actionType === 'REDIRECT' || ruleModal.data.actionType === 'BODY_REPLACE'" class="space-y-4 p-4 bg-slate-950/80 rounded-xl border border-purple-500/30 transition-all">
+                    <div>
+                        <label class="block text-slate-300 mb-1 text-xs uppercase tracking-wider font-bold text-yellow-400" x-text="ruleModal.data.actionType === 'HEADER_INJECT' ? 'Header Key or Name' : (ruleModal.data.actionType === 'REDIRECT' ? 'Redirect URL Target' : 'Match String / Target Key')">Match String</label>
+                        <textarea x-model="ruleModal.data.matchString" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-yellow-500" rows="2"></textarea>
+                    </div>
+                    <div x-show="ruleModal.data.actionType === 'MATCH_REPLACE' || ruleModal.data.actionType === 'HEADER_INJECT' || ruleModal.data.actionType === 'BODY_REPLACE'">
+                        <label class="block text-slate-300 mb-1 text-xs uppercase tracking-wider font-bold text-emerald-400" x-text="ruleModal.data.actionType === 'HEADER_INJECT' ? 'Header Value' : 'Replacement Content'">Replace String</label>
+                        <textarea x-model="ruleModal.data.replaceString" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-emerald-500" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 pt-2">
+                    <input type="checkbox" x-model="ruleModal.data.active" id="ruleActiveToggle" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-purple-600 focus:ring-purple-500">
+                    <label for="ruleActiveToggle" class="text-slate-300 font-semibold cursor-pointer">Enable rule immediately</label>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-8 pt-4 border-t border-slate-800">
+                <button @click="ruleModal.open = false" class="px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm">Cancel</button>
+                <button @click="saveRule()" class="px-6 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-sm shadow-lg shadow-purple-600/30">Save Local Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CREATIVE IDE CODE EDITOR FOR JS HOOKS -->
+    <div x-show="hookModal.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in" @keydown.escape.window="hookModal.open = false">
+        <div class="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-4xl border border-cyan-500/50 bg-[#0b1120] flex flex-col max-h-[92vh]" @click.away="hookModal.open = false">
+            
+            <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4 flex-shrink-0">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">⚡</span>
+                    <div>
+                        <h3 class="text-xl font-extrabold text-white" x-text="hookModal.isEdit ? 'IDE Editor: Edit JS Hook' : 'IDE Editor: New JS Hook'"></h3>
+                        <p class="text-xs text-cyan-400 font-mono">CodeMirror 5 Runtime IDE • Dracula Theme</p>
+                    </div>
+                </div>
+                <button @click="hookModal.open = false" class="text-slate-400 hover:text-white text-2xl font-bold">✕</button>
+            </div>
+
+            <div class="space-y-4 flex-1 overflow-y-auto pr-1 text-sm font-medium flex flex-col">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
+                    <div>
+                        <label class="block text-slate-300 mb-1 text-xs font-bold uppercase">Hook Name</label>
+                        <input type="text" x-model="hookModal.data.name" placeholder="e.g., Token Spoofer" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-slate-300 mb-1 text-xs font-bold uppercase">Target Intercept Pattern</label>
+                        <input type="text" x-model="hookModal.data.targetPattern" placeholder="*api.mysite.com/v1/*" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-cyan-300 font-mono focus:outline-none focus:border-cyan-500">
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col pt-2 min-h-[340px]">
+                    <div class="flex justify-between items-center bg-slate-900 px-4 py-2 rounded-t-xl border border-slate-800 border-b-0 text-xs font-mono text-slate-400">
+                        <span>javascript_hook.js</span>
+                        <span class="text-emerald-400 flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-ping"></span> Live Runtime Sandbox</span>
+                    </div>
+                    <!-- Masterpiece Textarea targeted by CodeMirror -->
+                    <div class="flex-1 relative">
+                        <textarea id="jsHookCodeEditor" x-model="hookModal.data.code"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 pt-2 flex-shrink-0">
+                    <input type="checkbox" x-model="hookModal.data.active" id="hookActiveToggle" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-cyan-500 focus:ring-cyan-500">
+                    <label for="hookActiveToggle" class="text-slate-300 font-semibold cursor-pointer">Hook Active</label>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-slate-800 flex-shrink-0">
+                <button @click="hookModal.open = false" class="px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm">Close</button>
+                <button @click="saveHook()" class="px-8 py-2.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-extrabold text-sm shadow-lg shadow-cyan-600/30">Commit JS Hook</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Support Me / Donate -->
+    <div x-show="supportModal" x-cloak class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in" @keydown.escape.window="supportModal = false">
+        <div class="glass-panel border border-yellow-500/30 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative bg-[#0f172a]" @click.away="supportModal = false">
+            <button @click="supportModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-white text-xl font-bold">✕</button>
+            <div class="text-center mb-6">
+                <span class="text-4xl inline-block mb-2">💛</span>
+                <h2 class="text-2xl font-extrabold text-white bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-200">Support DittoNet Development</h2>
+                <p class="text-sm text-slate-400 mt-1">If DittoNet streamlines your interception workflows, consider supporting its open-source journey!</p>
+                <div class="mt-4">
+                    <a href="https://github.com/MassoudiR/DittoNet" target="_blank" class="inline-flex items-center gap-2 px-5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-white font-bold text-sm shadow-lg transition-all hover:scale-105">⭐ Star Repo on GitHub</a>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <!-- USDT TRC20 Card -->
+                <div class="bg-slate-900/90 border border-emerald-500/30 rounded-xl p-5 flex flex-col items-center text-center shadow-lg relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold px-2.5 py-1 rounded-bl-lg uppercase tracking-wider">USDT (TRC20)</div>
+                    <div class="bg-white p-2 rounded-xl mb-3 shadow-md">
+                        <img src="/static/USDT-QR.png" alt="USDT TRC20 QR" class="w-36 h-36 object-contain">
+                    </div>
+                    <span class="text-xs text-slate-400 font-semibold uppercase mb-1">Tron Wallet Address</span>
+                    <div class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between gap-2">
+                        <code class="text-xs text-emerald-400 font-mono truncate select-all">TNhAhjhvw1c1CyayxreLNxhD8u8UViLiY5</code>
+                        <button @click="navigator.clipboard.writeText('TNhAhjhvw1c1CyayxreLNxhD8u8UViLiY5'); alert('Copied USDT TRC20 Address!')" class="text-slate-400 hover:text-white px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold transition-colors" title="Copy">📋</button>
+                    </div>
+                </div>
+
+                <!-- BTC Card -->
+                <div class="bg-slate-900/90 border border-amber-500/30 rounded-xl p-5 flex flex-col items-center text-center shadow-lg relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 bg-amber-500/20 text-amber-300 text-[10px] font-extrabold px-2.5 py-1 rounded-bl-lg uppercase tracking-wider">Bitcoin (BTC)</div>
+                    <div class="bg-white p-2 rounded-xl mb-3 shadow-md">
+                        <img src="/static/BTC-QR.png" alt="BTC QR" class="w-36 h-36 object-contain">
+                    </div>
+                    <span class="text-xs text-slate-400 font-semibold uppercase mb-1">Bitcoin Wallet Address</span>
+                    <div class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between gap-2">
+                        <code class="text-xs text-amber-400 font-mono truncate select-all">16xTx25nuwDQ9gKwumJgjJCfRXVgag27vP</code>
+                        <button @click="navigator.clipboard.writeText('16xTx25nuwDQ9gKwumJgjJCfRXVgag27vP'); alert('Copied BTC Address!')" class="text-slate-400 hover:text-white px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold transition-colors" title="Copy">📋</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center border-t border-slate-800 pt-4">
+                <button @click="supportModal = false" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-sm transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification -->
+    <div x-show="toast.show" x-cloak x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-8 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-200 transform" x-transition:leave-start="opacity-100 translate-y-0 scale-100" x-transition:leave-end="opacity-0 translate-y-8 scale-95" class="fixed bottom-8 right-8 z-50 flex items-center px-6 py-4 rounded-xl shadow-2xl border font-bold text-sm max-w-md backdrop-blur-xl" :class="toast.type === 'error' ? 'bg-red-950/90 border-red-500/50 text-red-200 shadow-red-900/40' : 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200 shadow-emerald-900/40'">
+        <span class="text-2xl mr-3" x-text="toast.type === 'error' ? '⚠️' : '🎉'"></span>
+        <span x-text="toast.message"></span>
+    </div>
+
+    <script>
+        let jsEditor = null;
+
+        function mobileWorkspaceApp() {
+            return {
+                activeTab: 'rules',
+                supportModal: false,
+                workspace: {
+                    timestamp: Date.now(),
+                    local_rules: [],
+                    js_hooks: []
+                },
+                loading: true,
+                saving: false,
+                checkingSync: false,
+                pollingInterval: null,
+                toast: { show: false, message: '', type: 'success' },
+
+                ruleModal: {
+                    open: false,
+                    isEdit: false,
+                    index: -1,
+                    data: { name: '', targetPattern: '', phase: 'Both', actionType: 'ALLOW', method: 'ANY', active: true, matchString: '', replaceString: '' }
+                },
+
+                hookModal: {
+                    open: false,
+                    isEdit: false,
+                    index: -1,
+                    data: { name: '', targetPattern: '', code: '', active: true }
+                },
+
+                init() {
+                    this.fetchWorkspace();
+                    // Auto-poll remote pushes from mobile app every 3 seconds
+                    this.pollingInterval = setInterval(() => {
+                        this.checkRemoteUpdates(false);
+                    }, 3000);
+                },
+
+                showToast(msg, type='success') {
+                    this.toast.message = msg;
+                    this.toast.type = type;
+                    this.toast.show = true;
+                    setTimeout(() => { this.toast.show = false; }, 3500);
+                },
+
+                async fetchWorkspace() {
+                    this.loading = true;
+                    try {
+                        const res = await fetch('/api/sync/workspace');
+                        const data = await res.json();
+                        if (data.local_rules) this.workspace.local_rules = data.local_rules;
+                        if (data.js_hooks) this.workspace.js_hooks = data.js_hooks;
+                        if (data.timestamp) this.workspace.timestamp = data.timestamp;
+                    } catch (e) {
+                        this.showToast('Failed to load mobile workspace data', 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async checkRemoteUpdates(manual = false) {
+                    if (this.saving) return;
+                    if (manual) this.checkingSync = true;
+                    try {
+                        const res = await fetch('/api/sync/workspace');
+                        const remote = await res.json();
+                        if (remote && remote.timestamp && remote.timestamp > this.workspace.timestamp) {
+                            this.workspace = remote;
+                            if (jsEditor && this.hookModal.open && this.hookModal.index >= 0) {
+                                const updatedHook = this.workspace.js_hooks[this.hookModal.index];
+                                if (updatedHook && updatedHook.code !== jsEditor.getValue()) {
+                                    jsEditor.setValue(updatedHook.code);
+                                }
+                            }
+                            this.showToast(manual ? '📥 Pushes pulled successfully!' : '📥 Auto-pulled changes pushed from mobile device!');
+                        } else if (manual) {
+                            this.showToast('Workspace is already up to date!');
+                        }
+                    } catch (e) {
+                        if (manual) this.showToast('Failed to pull updates', 'error');
+                    } finally {
+                        if (manual) this.checkingSync = false;
+                    }
+                },
+
+                async saveAndSync(showToastMsg = true) {
+                    this.saving = true;
+                    this.workspace.timestamp = Date.now();
+                    try {
+                        const res = await fetch('/api/sync/workspace', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.workspace)
+                        });
+                        if (res.ok) {
+                            if (showToastMsg) this.showToast('⚡ Saved & Pushed Successfully!');
+                        } else {
+                            const err = await res.json();
+                            this.showToast(err.error || 'Sync failed', 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('Network error during sync', 'error');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+
+                openAddRule() {
+                    this.ruleModal.isEdit = false;
+                    this.ruleModal.index = -1;
+                    this.ruleModal.data = { name: '', targetPattern: '', phase: 'Both', actionType: 'ALLOW', method: 'ANY', active: true, matchString: '', replaceString: '' };
+                    this.ruleModal.open = true;
+                },
+
+                openEditRule(index) {
+                    this.ruleModal.isEdit = true;
+                    this.ruleModal.index = index;
+                    this.ruleModal.data = JSON.parse(JSON.stringify(this.workspace.local_rules[index]));
+                    this.ruleModal.open = true;
+                },
+
+                saveRule() {
+                    if (!this.ruleModal.data.name || !this.ruleModal.data.targetPattern) {
+                        alert('Please provide a Rule Name and Target Pattern');
+                        return;
+                    }
+                    if (this.ruleModal.isEdit) {
+                        this.workspace.local_rules[this.ruleModal.index] = JSON.parse(JSON.stringify(this.ruleModal.data));
+                    } else {
+                        this.workspace.local_rules.push(JSON.parse(JSON.stringify(this.ruleModal.data)));
+                    }
+                    this.ruleModal.open = false;
+                    this.saveAndSync();
+                },
+
+                deleteRule(index) {
+                    if (confirm('Delete this mobile local rule?')) {
+                        this.workspace.local_rules.splice(index, 1);
+                        this.saveAndSync();
+                    }
+                },
+
+                openAddHook() {
+                    this.hookModal.isEdit = false;
+                    this.hookModal.index = -1;
+                    const defaultCode = '// Runtime Client JS Hook\n// Intercept & modify request/response objects\nconsole.log("Ditto JS Hook Triggered!");\n';
+                    this.hookModal.data = { name: '', targetPattern: '', code: defaultCode, active: true };
+                    this.hookModal.open = true;
+
+                    setTimeout(() => {
+                        const textarea = document.getElementById('jsHookCodeEditor');
+                        if (!textarea) return;
+                        if (!jsEditor) {
+                            jsEditor = CodeMirror.fromTextArea(textarea, {
+                                mode: "javascript",
+                                theme: "dracula",
+                                lineNumbers: true,
+                                matchBrackets: true
+                            });
+                            jsEditor.on('change', () => {
+                                this.hookModal.data.code = jsEditor.getValue();
+                            });
+                        }
+                        jsEditor.setValue(this.hookModal.data.code || '');
+                        jsEditor.refresh();
+                    }, 50);
+                },
+
+                openEditHook(index) {
+                    this.hookModal.isEdit = true;
+                    this.hookModal.index = index;
+                    this.hookModal.data = JSON.parse(JSON.stringify(this.workspace.js_hooks[index]));
+                    this.hookModal.open = true;
+
+                    setTimeout(() => {
+                        const textarea = document.getElementById('jsHookCodeEditor');
+                        if (!textarea) return;
+                        if (!jsEditor) {
+                            jsEditor = CodeMirror.fromTextArea(textarea, {
+                                mode: "javascript",
+                                theme: "dracula",
+                                lineNumbers: true,
+                                matchBrackets: true
+                            });
+                            jsEditor.on('change', () => {
+                                this.hookModal.data.code = jsEditor.getValue();
+                            });
+                        }
+                        jsEditor.setValue(this.hookModal.data.code || '');
+                        jsEditor.refresh();
+                    }, 50);
+                },
+
+                saveHook() {
+                    if (jsEditor) {
+                        this.hookModal.data.code = jsEditor.getValue();
+                    }
+                    if (!this.hookModal.data.name || !this.hookModal.data.targetPattern) {
+                        alert('Please enter Hook Name and Target Pattern');
+                        return;
+                    }
+                    if (this.hookModal.isEdit) {
+                        this.workspace.js_hooks[this.hookModal.index] = JSON.parse(JSON.stringify(this.hookModal.data));
+                    } else {
+                        this.workspace.js_hooks.push(JSON.parse(JSON.stringify(this.hookModal.data)));
+                    }
+                    this.hookModal.open = false;
+                    this.saveAndSync();
+                },
+
+                deleteHook(index) {
+                    if (confirm('Delete this JS Hook script?')) {
+                        this.workspace.js_hooks.splice(index, 1);
+                        this.saveAndSync();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
