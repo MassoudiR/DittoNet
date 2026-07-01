@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DittoNet Core Infrastructure | High-Throughput Mobile Interception Bridge</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              cyan: '#00E5FF',
+              emerald: '#00C853',
+              purple: '#8A2BE2',
+              dark: '#05070D',
+              panel: '#0B101D',
+              border: '#1E293B',
+              glow: 'rgba(0, 229, 255, 0.15)'
+            }
+          },
+          fontFamily: {
+            sans: ['Outfit', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- PrismJS Syntax Highlighting CDN -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+
+  <!-- Alpine.js CDN for Reactive Interactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      background-color: #05070D;
+      color: #E2E8F0;
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+    }
+    .grid-pattern {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+    }
+    .phone-frame {
+      position: relative;
+      width: 100%;
+      max-width: 300px;
+      height: 610px;
+      background: #111827;
+      border-radius: 44px;
+      padding: 12px;
+      box-shadow: 0 25px 60px -15px rgba(0, 229, 255, 0.25), inset 0 0 0 2px #374151;
+      margin: 0 auto;
+    }
+    .phone-notch {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 22px;
+      background: #05070D;
+      border-radius: 12px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .phone-speaker {
+      width: 40px;
+      height: 4px;
+      background: #1F2937;
+      border-radius: 2px;
+    }
+    .phone-screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #05070D;
+      border-radius: 34px;
+      overflow: hidden;
+    }
+    .laptop-frame {
+      position: relative;
+      width: 100%;
+      max-width: 760px;
+      background: #1F2937;
+      border-radius: 20px 20px 0 0;
+      padding: 16px 16px 4px 16px;
+      box-shadow: 0 30px 70px -15px rgba(138, 43, 226, 0.25), inset 0 0 0 2px #374151;
+      margin: 0 auto;
+    }
+    .laptop-base {
+      width: 100%;
+      max-width: 860px;
+      height: 22px;
+      background: #374151;
+      border-radius: 0 0 16px 16px;
+      margin: 0 auto;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .laptop-indent {
+      width: 100px;
+      height: 6px;
+      background: #1F2937;
+      border-radius: 0 0 4px 4px;
+    }
+    .laptop-screen {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      background: #05070D;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #111827;
+    }
+    .card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px -15px rgba(0, 229, 255, 0.2);
+    }
+    pre[class*="language-"] {
+      background: #0B101D !important;
+      border: 1px solid #1E293B;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      font-size: 0.875rem;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #05070D; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 3px; }
+  </style>
+</head>
+<body x-data="{ 
+  viewMode: 'overview', 
+  activeSection: 'blueprint', 
+  activeTab: 'remote', 
+  simulateCode: 200,
+  mobileMenuOpen: false,
+  activeMobileSlide: 0,
+  activeServerSlide: 0,
+  mobileSlides: ['img/mobile/01.jpg', 'img/mobile/02.jpg', 'img/mobile/03.jpg', 'img/mobile/04.jpg', 'img/mobile/05.jpg', 'img/mobile/06.jpg', 'img/mobile/07.jpg', 'img/mobile/08.jpg'],
+  serverSlides: ['img/server/01.png', 'img/server/02.png', 'img/server/03.png', 'img/server/04.png', 'img/server/05.png', 'img/server/06.png']
+}" 
+x-init="
+  setInterval(() => { activeMobileSlide = (activeMobileSlide + 1) % mobileSlides.length }, 3500);
+  setInterval(() => { activeServerSlide = (activeServerSlide + 1) % serverSlides.length }, 4000);
+"
+class="min-h-screen flex flex-col grid-pattern">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-brand-border bg-brand-dark/95 sticky top-0 z-50 backdrop-blur-xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+      <div class="flex items-center space-x-3 cursor-pointer" @click="viewMode = 'overview'">
+        <img src="img/logo.png" alt="DittoNet Logo" class="h-10 w-auto">
+        <span class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+          DITTONET <span class="text-xs px-2.5 py-0.5 rounded-full bg-brand-cyan/10 text-brand-cyan font-mono border border-brand-cyan/30">V1.0 CORE</span>
+        </span>
+      </div>
+
+      <!-- Desktop Action & Navigation Bar -->
+      <div class="hidden lg:flex items-center gap-3 font-semibold text-sm">
+        <button @click="viewMode = 'overview'" :class="viewMode === 'overview' ? 'bg-brand-cyan text-black font-bold shadow-lg shadow-brand-cyan/20' : 'text-slate-300 hover:bg-slate-800'" class="px-4 py-2 rounded-full transition">Overview</button>
+        <button @click="viewMode = 'docs'" :class="viewMode === 'docs' ? 'bg-brand-cyan text-black font-bold shadow-lg shadow-brand-cyan/20' : 'text-slate-300 hover:bg-slate-800'" class="px-4 py-2 rounded-full transition flex items-center gap-1.5"><i data-lucide="terminal" class="w-4 h-4"></i> Technical Specs</button>
+        
+        <!-- Download Button -->
+        <a href="https://github.com/MassoudiR/DittoNet/releases" target="_blank" class="px-4 py-2 rounded-full bg-gradient-to-r from-brand-emerald to-emerald-400 text-black font-extrabold hover:scale-105 transition transform shadow-lg shadow-brand-emerald/20 flex items-center gap-1.5">
+          <i data-lucide="download" class="w-4 h-4"></i> Download APK
+        </a>
+
+        <!-- GitHub Star Button -->
+        <a href="https://github.com/MassoudiR/DittoNet" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-yellow-400 font-bold transition border border-yellow-500/40 flex items-center gap-1.5 shadow-md hover:shadow-yellow-500/10">
+                    <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i> Star on GitHub <span class="gh-star-count ml-1 px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-300 text-xs font-mono">★</span>
+        </a>
+      </div>
+
+      <!-- Mobile Hamburger Menu Button -->
+      <div class="lg:hidden flex items-center">
+        <button @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle Navigation Menu" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          <i x-show="!mobileMenuOpen" data-lucide="menu" class="w-6 h-6"></i>
+          <i x-show="mobileMenuOpen" data-lucide="x" class="w-6 h-6" style="display: none;"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div x-show="mobileMenuOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" class="lg:hidden border-t border-brand-border bg-brand-panel/95 px-6 py-5 space-y-3 shadow-2xl backdrop-blur-xl" style="display: none;">
+      <button @click="viewMode = 'overview'; mobileMenuOpen = false" :class="viewMode === 'overview' ? 'bg-brand-cyan text-black font-bold' : 'text-slate-300 bg-slate-800/50'" class="w-full text-left px-4 py-3 rounded-xl transition font-semibold text-sm flex items-center justify-between">
+        <span>Architecture Overview</span>
+        <i data-lucide="layout" class="w-4 h-4"></i>
+      </button>
+      <button @click="viewMode = 'docs'; mobileMenuOpen = false" :class="viewMode === 'docs' ? 'bg-brand-cyan text-black font-bold' : 'text-slate-300 bg-slate-800/50'" class="w-full text-left px-4 py-3 rounded-xl transition font-semibold text-sm flex items-center justify-between">
+        <span>Technical Specifications</span>
+        <i data-lucide="terminal" class="w-4 h-4"></i>
+      </button>
+      <div class="pt-2 border-t border-slate-800 flex flex-col sm:flex-row gap-3">
+        <a href="https://github.com/MassoudiR/DittoNet/releases" target="_blank" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-brand-emerald to-emerald-400 text-black font-extrabold flex items-center justify-center gap-2 shadow-lg">
+          <i data-lucide="download" class="w-4 h-4"></i> Download APK
+        </a>
+        <a href="https://github.com/MassoudiR/DittoNet" target="_blank" rel="noopener noreferrer" class="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-yellow-400 font-bold border border-yellow-500/40 flex items-center justify-center gap-2 shadow-md">
+                    <i data-lucide="star" class="w-4 h-4 fill-yellow-400"></i> Star on GitHub <span class="gh-star-count px-2 py-0.5 rounded-full bg-yellow-400/10 text-yellow-300 text-xs font-mono">★</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ARCHITECTURE & CAPABILITIES OVERVIEW -->
+  <div x-show="viewMode === 'overview'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0">
+    
+    <!-- Hero Banner -->
+    <section class="relative pt-16 pb-20 px-6 overflow-hidden">
+      <div class="max-w-6xl mx-auto text-center relative z-10">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-700 text-brand-cyan font-mono text-xs font-semibold uppercase tracking-widest mb-6 shadow-md">
+          <span class="w-2 h-2 rounded-full bg-brand-emerald animate-ping"></span> Zero-Root Transparent Interception & Runtime Hooking Engine
+        </div>
+        <h1 class="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-white mb-6 leading-tight">
+          PROGRAMMATIC CONTROL OVER <br><span class="bg-gradient-to-r from-brand-cyan via-brand-emerald to-brand-purple bg-clip-text text-transparent">MOBILE NETWORK TRAFFIC</span>
+        </h1>
+        <p class="text-base sm:text-lg md:text-xl text-slate-400 max-w-3xl mx-auto mb-10 font-normal leading-relaxed">
+          DittoNet bypasses OS network isolation and SSL/TLS certificate pinning by operating directly at the native runtime rendering boundary. Capture, mutate, and inspect live HTTP/HTTPS requests with zero-latency AST payload evaluation and W3C HAR 1.2 telemetry.
+        </p>
+
+        <!-- Dynamic Action Buttons Grid -->
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <a href="https://github.com/MassoudiR/DittoNet/releases" target="_blank" class="px-8 py-4 rounded-full bg-gradient-to-r from-brand-emerald to-emerald-400 text-black font-extrabold text-base shadow-xl shadow-brand-emerald/30 hover:scale-105 transition transform flex items-center gap-2">
+            <i data-lucide="download-cloud" class="w-5 h-5"></i> Download Engine Release
+          </a>
+          <button @click="viewMode = 'docs'" class="px-8 py-4 rounded-full bg-brand-cyan text-black font-extrabold text-base shadow-xl shadow-brand-cyan/30 hover:scale-105 transition transform flex items-center gap-2">
+            <i data-lucide="cpu" class="w-5 h-5"></i> Open Technical Specs
+          </button>
+          <a href="https://github.com/MassoudiR/DittoNet" target="_blank" rel="noopener noreferrer" class="px-8 py-4 rounded-full bg-slate-900 hover:bg-slate-800 text-yellow-400 font-bold text-base border border-yellow-500/40 hover:scale-105 transition transform flex items-center gap-2 shadow-lg">
+            <i data-lucide="star" class="w-5 h-5 fill-yellow-400"></i> Star on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: 6 MOST IMPORTANT FUNCTIONS -->
+    <section class="max-w-7xl mx-auto px-6 py-16 border-t border-brand-border/60">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4">CORE ENGINEERING CAPABILITIES</h2>
+        <p class="text-slate-400 max-w-2xl mx-auto text-base">The six foundational pillars powering deterministic mobile traffic interception and analysis.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        
+        <!-- Function Card 1 -->
+        <div class="bg-brand-panel border border-brand-border rounded-3xl p-8 card-hover group flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-brand-cyan/10 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan mb-6 group-hover:scale-110 transition transform">
+              <i data-lucide="shield" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">Dual-Mode Interception Pipeline</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Seamlessly switch between synchronous remote WebSocket synchronization (`/api/intercept/request`) and standalone, zero-latency local rules evaluation running directly in device memory.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-brand-cyan flex items-center justify-between">
+            <span>DETERMINISTIC PRECEDENCE</span>
+            <span>0.4ms overhead</span>
+          </div>
+        </div>
+
+        <!-- Function Card 2 -->
+        <div class="bg-brand-panel border border-brand-border rounded-3xl p-8 card-hover group flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-brand-emerald/10 border border-brand-emerald/30 flex items-center justify-center text-brand-emerald mb-6 group-hover:scale-110 transition transform">
+              <i data-lucide="code" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">AST-Aware Payload Mutation</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Normalizes CRLF line endings in request and response bodies, then executes exact-string or wildcard-pattern substitutions. When the body is a JSON object, it is serialized to a string before replacement and re-parsed afterward to preserve structural integrity.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-brand-emerald flex items-center justify-between">
+            <span>SURGICAL MUTATION</span>
+            <span>REGEX / DICT HOOKS</span>
+          </div>
+        </div>
+
+        <!-- Function Card 3 -->
+        <div class="bg-brand-panel border border-brand-border rounded-3xl p-8 card-hover group flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-brand-purple/10 border border-brand-purple/30 flex items-center justify-center text-brand-purple mb-6 group-hover:scale-110 transition transform">
+              <i data-lucide="activity" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">W3C HAR 1.2 Telemetry Export</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Records exhaustive HTTP session logs including microsecond DNS/TCP timing metrics, cookies, status codes, and multi-megabyte bodies for standardized export into Burp Suite or OWASP ZAP.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-brand-purple flex items-center justify-between">
+            <span>FULL W3C SPEC</span>
+            <span>IPC DIRECT EXPORT</span>
+          </div>
+        </div>
+
+        <!-- Function Card 4 -->
+        <div class="bg-brand-panel border border-brand-border rounded-3xl p-8 card-hover group flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-brand-cyan/10 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan mb-6 group-hover:scale-110 transition transform">
+              <i data-lucide="terminal" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">Runtime DOM Hooking</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Schedules JavaScript snippets to execute at <code class="font-mono bg-slate-800 px-1 rounded">DOCUMENT_START</code>, guaranteeing that custom hooks override the JavaScript environment before the target page constructs its DOM tree or executes anti-tampering logic.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-brand-cyan flex items-center justify-between">
+            <span>EARLY INJECTION</span>
+            <span>SANDBOX POLICIES</span>
+          </div>
+        </div>
+
+        <!-- Function Card 5 -->
+        <div class="bg-brand-panel border border-brand-border rounded-3xl p-8 card-hover group flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-brand-emerald/10 border border-brand-emerald/30 flex items-center justify-center text-brand-emerald mb-6 group-hover:scale-110 transition transform">
+              <i data-lucide="cpu" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">Air-Gapped DevTools Server</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Bundles minified Eruda and vConsole debugging suites directly within application RAM. Intercepts internal asset requests to eliminate external dependency failures during offline network auditing.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-brand-emerald flex items-center justify-between">
+            <span>100% OFFLINE</span>
+            <span>MEMORY BUFFERED</span>
+          </div>
+        </div>
+
+        <!-- Function Card 6 -->
+        <div class="bg-brand-panel border border-brand-border rounded-3xl p-8 card-hover group flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-brand-purple/10 border border-brand-purple/30 flex items-center justify-center text-brand-purple mb-6 group-hover:scale-110 transition transform">
+              <i data-lucide="database" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">Embedded REST API Suite</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Integrated Postman-equivalent evaluation client supporting GET, POST, PUT, DELETE, and PATCH methods with dynamic header assignment and instant shell `curl` command compilation.
+            </p>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-brand-purple flex items-center justify-between">
+            <span>STANDALONE CLIENT</span>
+            <span>cURL GENERATOR</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION: ANIMATED DEVICE FRAMES & SCREENSHOT CAROUSELS -->
+    <section class="max-w-7xl mx-auto px-6 py-20 border-t border-brand-border/60">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4">LIVE EXECUTION ENVIRONMENTS</h2>
+        <p class="text-slate-400 max-w-2xl mx-auto">Real-time runtime views across mobile interception clients and desktop Python command centers.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+        
+        <!-- Mobile Phone Device Frame (Cycles through 8 mobile screenshots) -->
+        <div class="lg:col-span-5 flex flex-col items-center">
+          <div class="flex items-center space-x-2 mb-6">
+            <span class="w-2.5 h-2.5 rounded-full bg-brand-cyan animate-pulse"></span>
+            <span class="font-mono font-bold text-sm text-white uppercase tracking-wider">DITTO MOBILE RUNTIME ENGINE</span>
+          </div>
+
+          <!-- Realistic Phone CSS Frame -->
+          <div class="phone-frame">
+            <div class="phone-notch">
+              <div class="phone-speaker"></div>
+            </div>
+            <div class="phone-screen relative">
+              <template x-for="(slide, idx) in mobileSlides" :key="idx">
+                <div x-show="activeMobileSlide === idx" x-transition:enter="transition ease-out duration-700" x-transition:enter-start="opacity-0 scale-95" class="absolute inset-0 w-full h-full">
+                  <img :src="slide" alt="Mobile Screenshot" class="w-full h-full object-cover">
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Mobile Carousel Indicators -->
+          <div class="flex items-center space-x-2 mt-6">
+            <template x-for="(slide, idx) in mobileSlides" :key="idx">
+              <button @click="activeMobileSlide = idx" :class="activeMobileSlide === idx ? 'w-6 bg-brand-cyan' : 'w-2 bg-slate-700 hover:bg-slate-500'" class="h-2 rounded-full transition-all duration-300"></button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Desktop Laptop Device Frame (Cycles through 6 server screenshots) -->
+        <div class="lg:col-span-7 flex flex-col items-center">
+          <div class="flex items-center space-x-2 mb-6">
+            <span class="w-2.5 h-2.5 rounded-full bg-brand-purple animate-pulse"></span>
+            <span class="font-mono font-bold text-sm text-white uppercase tracking-wider">DITTO SERVER COMMAND CENTER</span>
+          </div>
+
+          <!-- Realistic Laptop CSS Frame -->
+          <div class="w-full">
+            <div class="laptop-frame">
+              <div class="laptop-screen relative">
+                <template x-for="(slide, idx) in serverSlides" :key="idx">
+                  <div x-show="activeServerSlide === idx" x-transition:enter="transition ease-out duration-700" x-transition:enter-start="opacity-0 scale-98" class="absolute inset-0 w-full h-full bg-slate-900">
+                    <img :src="slide" alt="Server Screenshot" class="w-full h-full object-contain">
+                  </div>
+                </template>
+              </div>
+            </div>
+            <div class="laptop-base">
+              <div class="laptop-indent"></div>
+            </div>
+          </div>
+
+          <!-- Server Carousel Indicators -->
+          <div class="flex items-center space-x-2 mt-6">
+            <template x-for="(slide, idx) in serverSlides" :key="idx">
+              <button @click="activeServerSlide = idx" :class="activeServerSlide === idx ? 'w-6 bg-brand-purple' : 'w-2 bg-slate-700 hover:bg-slate-500'" class="h-2 rounded-full transition-all duration-300"></button>
+            </template>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <!-- TECHNICAL SPECIFICATIONS PORTAL -->
+  <div x-show="viewMode === 'docs'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" class="flex-1 max-w-7xl mx-auto w-full flex" style="display: none;">
+
+    <!-- Sidebar -->
+    <aside class="w-60 border-r border-brand-border py-8 pr-5 shrink-0 hidden md:block sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto custom-scrollbar">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">Getting Started</div>
+      <nav class="space-y-0.5 mb-6">
+        <button @click="activeSection='usage'" :class="activeSection==='usage'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="book-open" class="w-4 h-4 shrink-0"></i>Usage Guide</button>
+        <button @click="activeSection='quickstart'" :class="activeSection==='quickstart'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="rocket" class="w-4 h-4 shrink-0"></i>Quickstart</button>
+      </nav>
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">Interception Engine</div>
+      <nav class="space-y-0.5 mb-6">
+        <button @click="activeSection='blueprint'" :class="activeSection==='blueprint'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="cpu" class="w-4 h-4 shrink-0"></i>System Architecture</button>
+        <button @click="activeSection='pipeline'" :class="activeSection==='pipeline'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="shield" class="w-4 h-4 shrink-0"></i>Dual-Mode Pipeline</button>
+        <button @click="activeSection='rules'" :class="activeSection==='rules'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="sliders" class="w-4 h-4 shrink-0"></i>Rule Action Reference</button>
+      </nav>
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">Data &amp; Telemetry</div>
+      <nav class="space-y-0.5 mb-6">
+        <button @click="activeSection='api'" :class="activeSection==='api'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="arrow-right-left" class="w-4 h-4 shrink-0"></i>REST API Contract</button>
+        <button @click="activeSection='har'" :class="activeSection==='har'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="activity" class="w-4 h-4 shrink-0"></i>W3C HAR 1.2 Format</button>
+        <button @click="activeSection='hooks'" :class="activeSection==='hooks'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="terminal" class="w-4 h-4 shrink-0"></i>JS Hooks &amp; Workspace</button>
+      </nav>
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">Extensibility</div>
+      <nav class="space-y-0.5">
+        <button @click="activeSection='plugins'" :class="activeSection==='plugins'?'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/30 font-semibold':'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'" class="w-full text-left px-3 py-2 rounded-lg border border-transparent transition flex items-center gap-2 text-sm"><i data-lucide="code-2" class="w-4 h-4 shrink-0"></i>Python Plugin API</button>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 py-10 md:px-12 px-6 overflow-x-hidden">
+
+      <!-- USAGE GUIDE -->
+      <div x-show="activeSection==='usage'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Getting Started</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">Usage Guide</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">This guide walks through the complete workflow for intercepting and modifying live mobile traffic — from installing the app to creating your first rule. No prior experience with proxy tools is required.</p>
+        </div>
+
+        <!-- What you need -->
+        <div class="bg-brand-panel border border-brand-border rounded-2xl p-6 mb-8">
+          <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="package" class="w-4 h-4 text-brand-cyan"></i>What You Need</h3>
+          <ul class="space-y-2 text-sm text-slate-400">
+            <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-brand-emerald shrink-0 mt-0.5"></i>An Android device (physical or emulator) — <strong class="text-slate-200">no root required</strong></li>
+            <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-brand-emerald shrink-0 mt-0.5"></i>The <strong class="text-slate-200">Ditto Mobile APK</strong> installed on the device (download from <a href="https://github.com/MassoudiR/DittoNet/releases" target="_blank" rel="noopener noreferrer" class="text-brand-cyan hover:underline">GitHub Releases</a>)</li>
+            <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-brand-emerald shrink-0 mt-0.5"></i>A computer on the same local network, running <strong class="text-slate-200">Python 3.10+</strong></li>
+            <li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-brand-emerald shrink-0 mt-0.5"></i>The <strong class="text-slate-200">Ditto Server</strong> running on that computer (see Quickstart)</li>
+          </ul>
+        </div>
+
+        <!-- How it works summary -->
+        <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="workflow" class="w-4 h-4 text-brand-cyan"></i>How It Works — Overview</h3>
+        <p class="text-sm text-slate-400 mb-6 leading-relaxed max-w-3xl">Ditto Mobile is a full browser. You use it to visit websites and web apps just like a normal browser. Behind the scenes, every HTTP request the browser makes passes through DittoNet's interception engine before it reaches the internet. You can define <strong class="text-slate-200">rules</strong> that tell the engine what to do with those requests — block them, redirect them, or modify their contents — in real time, without touching the target application.</p>
+
+        <!-- Step-by-step walkthrough -->
+        <h3 class="text-sm font-bold text-white mb-5 flex items-center gap-2"><i data-lucide="list-ordered" class="w-4 h-4 text-brand-cyan"></i>Step-by-Step Example: Modify an API Response</h3>
+        <p class="text-sm text-slate-400 mb-6 leading-relaxed max-w-3xl">In this example, a web app returns a JSON response containing <code class="text-brand-cyan font-mono text-xs">{"account_tier": "standard"}</code>. We will create a rule that automatically changes it to <code class="text-brand-emerald font-mono text-xs">{"account_tier": "premium"}</code> on every response, without modifying the app or the server.</p>
+
+        <div class="space-y-4 mb-10">
+
+          <!-- Step 1 -->
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="w-7 h-7 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan font-mono text-xs font-bold shrink-0">1</span>
+              <span class="text-sm font-semibold text-white">Start the server and open the dashboard</span>
+            </div>
+            <div class="p-5 text-sm text-slate-400 space-y-3">
+              <p>On your computer, run the Python server:</p>
+              <pre><code class="language-bash">cd "Ditto Server"
+.venv\Scripts\activate
+python test_implementation.py</code></pre>
+              <p>Open <code class="text-brand-cyan font-mono text-xs">http://localhost:5000</code> in your browser. You will see the DittoNet dashboard with a live traffic log and a Rules panel.</p>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="w-7 h-7 rounded-full bg-brand-purple/10 border border-brand-purple/30 flex items-center justify-center text-brand-purple font-mono text-xs font-bold shrink-0">2</span>
+              <span class="text-sm font-semibold text-white">Connect Ditto Mobile to the server</span>
+            </div>
+            <div class="p-5 text-sm text-slate-400 space-y-2">
+              <p>Open <strong class="text-slate-200">Ditto Mobile</strong> on your Android device. Tap the <strong class="text-slate-200">Settings</strong> icon and enter your computer's local IP address (e.g., <code class="text-brand-cyan font-mono text-xs">192.168.1.10</code>) in the <strong class="text-slate-200">Remote Server</strong> field. Tap <strong class="text-slate-200">Connect</strong>.</p>
+              <p>The status indicator turns green when the device successfully reaches the server via <code class="text-brand-cyan font-mono text-xs">GET /api/health</code>. All traffic from the browser will now be routed through the server's rule engine.</p>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="w-7 h-7 rounded-full bg-brand-emerald/10 border border-brand-emerald/30 flex items-center justify-center text-brand-emerald font-mono text-xs font-bold shrink-0">3</span>
+              <span class="text-sm font-semibold text-white">Create a MATCH_REPLACE rule on the dashboard</span>
+            </div>
+            <div class="p-5 text-sm text-slate-400 space-y-3">
+              <p>In the dashboard, go to <strong class="text-slate-200">Rules → New Rule</strong> and fill in the following fields:</p>
+              <div class="bg-brand-dark rounded-xl overflow-hidden border border-slate-800">
+                <table class="w-full text-xs">
+                  <tbody class="divide-y divide-slate-800">
+                    <tr><td class="px-4 py-2 text-slate-500 font-mono w-36">URL Pattern</td><td class="px-4 py-2 text-brand-cyan font-mono">*api.example.com/v1/account*</td></tr>
+                    <tr><td class="px-4 py-2 text-slate-500 font-mono">Method</td><td class="px-4 py-2 text-slate-200">ANY</td></tr>
+                    <tr><td class="px-4 py-2 text-slate-500 font-mono">Phase</td><td class="px-4 py-2 text-slate-200">Response</td></tr>
+                    <tr><td class="px-4 py-2 text-slate-500 font-mono">Action</td><td class="px-4 py-2 text-brand-emerald font-mono font-bold">MATCH_REPLACE</td></tr>
+                    <tr><td class="px-4 py-2 text-slate-500 font-mono">Match</td><td class="px-4 py-2 text-slate-200 font-mono">"account_tier": "standard"</td></tr>
+                    <tr><td class="px-4 py-2 text-slate-500 font-mono">Replace</td><td class="px-4 py-2 text-brand-emerald font-mono">"account_tier": "premium"</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Click <strong class="text-slate-200">Save</strong>. The rule is immediately active — no restart required.</p>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-slate-300 font-mono text-xs font-bold shrink-0">4</span>
+              <span class="text-sm font-semibold text-white">Browse normally — the rule activates automatically</span>
+            </div>
+            <div class="p-5 text-sm text-slate-400 space-y-3">
+              <p>In Ditto Mobile, navigate to the target website. When the browser sends a request matching <code class="text-brand-cyan font-mono text-xs">*api.example.com/v1/account*</code>, the server intercepts the response and replaces <code class="text-brand-cyan font-mono text-xs">"account_tier": "standard"</code> with <code class="text-brand-emerald font-mono text-xs">"account_tier": "premium"</code> before the browser renders it.</p>
+              <p>The dashboard updates in real time, highlighting the modified transaction with a <strong class="text-slate-200">MODIFIED</strong> badge. You can click any log entry to inspect the original and mutated headers and body side by side.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Other common use cases -->
+        <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="layers" class="w-4 h-4 text-brand-cyan"></i>Other Common Use Cases</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div class="bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="text-sm font-semibold text-white mb-2 flex items-center gap-2"><span class="px-2 py-0.5 rounded bg-red-500/10 text-red-400 font-mono text-xs font-bold border border-red-500/20">BLOCK</span>Remove ads and trackers</div>
+            <p class="text-xs text-slate-400">Create a BLOCK rule with a URL pattern matching your ad network domain (e.g., <code class="text-brand-cyan font-mono">*googlesyndication.com*</code>). Every request to that domain will be dropped and returned as HTTP 403, preventing the resource from loading.</p>
+          </div>
+          <div class="bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="text-sm font-semibold text-white mb-2 flex items-center gap-2"><span class="px-2 py-0.5 rounded bg-brand-cyan/10 text-brand-cyan font-mono text-xs font-bold border border-brand-cyan/20">REDIRECT</span>Switch API environments</div>
+            <p class="text-xs text-slate-400">Redirect production API calls to a local mock server by creating a REDIRECT rule targeting your production domain. Set <code class="text-brand-cyan font-mono">replaceStr</code> to your local address (e.g., <code class="text-brand-cyan font-mono">http://192.168.1.10:8080</code>).</p>
+          </div>
+          <div class="bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="text-sm font-semibold text-white mb-2 flex items-center gap-2"><span class="px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 font-mono text-xs font-bold border border-yellow-500/20">HEADER_INJECT</span>Inject authentication tokens</div>
+            <p class="text-xs text-slate-400">Add an <code class="text-brand-cyan font-mono">Authorization</code> header to every outbound request without modifying the app. Useful for testing APIs that require bearer tokens during development sessions.</p>
+          </div>
+          <div class="bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="text-sm font-semibold text-white mb-2 flex items-center gap-2"><span class="px-2 py-0.5 rounded bg-brand-purple/10 text-brand-purple font-mono text-xs font-bold border border-brand-purple/20">BODY_REPLACE</span>Swap entire response payloads</div>
+            <p class="text-xs text-slate-400">Replace the complete JSON body of an API response with a custom fixture. Useful for testing UI behaviour against edge-case or error-state API responses without a staging server.</p>
+          </div>
+        </div>
+
+        <!-- Standalone mode note -->
+        <div class="bg-brand-panel border border-brand-cyan/20 rounded-xl p-5 text-sm text-slate-400 leading-relaxed">
+          <strong class="text-brand-cyan font-mono text-xs">STANDALONE MODE &nbsp;</strong>
+          If you do not have a computer available, Ditto Mobile can operate entirely on-device. Go to <strong class="text-slate-200">Settings → Mode → Standalone</strong>. Rules are created directly in the app and evaluated locally with no server dependency. The dashboard and Python plugins are not available in this mode, but all six rule action types still work.
+        </div>
+      </div>
+
+      <!-- SYSTEM ARCHITECTURE -->
+      <div x-show="activeSection==='blueprint'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Interception Engine</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">System Architecture</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">DittoNet intercepts HTTP/HTTPS traffic at the <code class="text-brand-cyan font-mono bg-slate-900 px-1.5 py-0.5 rounded text-sm">WebResourceRequest</code> boundary inside the Flutter WebView runtime, before requests reach the Android OS network stack. This position in the call chain bypasses SSL/TLS certificate pinning enforced at the application layer, as the interception occurs within the trusted WebView execution context before any TLS validation.</p>
+        </div>
+
+        <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="git-branch" class="w-4 h-4 text-brand-cyan"></i>Execution Flow</h3>
+        <div class="space-y-3 mb-10">
+          <div class="flex items-start gap-4 bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="w-7 h-7 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan font-mono text-xs font-bold shrink-0 mt-0.5">1</div>
+            <div><div class="text-sm font-semibold text-white mb-1">WebResourceRequest Capture</div><div class="text-xs text-slate-400">The Flutter <code class="text-brand-cyan font-mono">InAppWebView</code> widget calls <code class="text-brand-cyan font-mono">shouldOverrideUrlLoading</code> and <code class="text-brand-cyan font-mono">shouldInterceptRequest</code> for every outbound navigation and resource fetch. DittoNet's <code class="text-brand-cyan font-mono">InterceptorCore</code> captures these callbacks before any network I/O is initiated.</div></div>
+          </div>
+          <div class="flex items-start gap-4 bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="w-7 h-7 rounded-full bg-brand-purple/10 border border-brand-purple/30 flex items-center justify-center text-brand-purple font-mono text-xs font-bold shrink-0 mt-0.5">2</div>
+            <div><div class="text-sm font-semibold text-white mb-1">Mode Determination</div><div class="text-xs text-slate-400">The engine checks server reachability. If the Ditto Server is available, the full request payload is serialized and forwarded via <code class="text-brand-cyan font-mono">POST /api/intercept/request</code>. Otherwise, the local Dart rules engine evaluates the request in-memory with no network dependency.</div></div>
+          </div>
+          <div class="flex items-start gap-4 bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="w-7 h-7 rounded-full bg-brand-emerald/10 border border-brand-emerald/30 flex items-center justify-center text-brand-emerald font-mono text-xs font-bold shrink-0 mt-0.5">3</div>
+            <div><div class="text-sm font-semibold text-white mb-1">Rule Evaluation &amp; Mutation</div><div class="text-xs text-slate-400">Matching rules are applied in deterministic precedence order: <code class="text-brand-cyan font-mono">BLOCK → REDIRECT → EXECUTE_PLUGIN → BODY_REPLACE → MATCH_REPLACE → HEADER_INJECT</code>. Terminal actions (BLOCK, REDIRECT) cause immediate return. Non-terminal actions accumulate across all matched rules for the same request.</div></div>
+          </div>
+          <div class="flex items-start gap-4 bg-brand-panel border border-brand-border rounded-xl p-4">
+            <div class="w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-slate-300 font-mono text-xs font-bold shrink-0 mt-0.5">4</div>
+            <div><div class="text-sm font-semibold text-white mb-1">Response Phase &amp; Telemetry</div><div class="text-xs text-slate-400">After the upstream server responds, the payload is submitted to <code class="text-brand-cyan font-mono">POST /api/intercept/response</code> for response-phase rule evaluation. The server then emits a <code class="text-brand-cyan font-mono">Socket.IO</code> event to update the dashboard and appends the complete transaction to the rolling in-memory log.</div></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- DUAL-MODE PIPELINE -->
+      <div x-show="activeSection==='pipeline'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" style="display:none;">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Interception Engine</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">Dual-Mode Interception Pipeline</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">Both modes evaluate the same rule schema and produce identical mutation output. The difference is where evaluation occurs and whether live dashboard telemetry and Python plugins are available.</p>
+        </div>
+
+        <div class="overflow-x-auto mb-8">
+          <table class="w-full text-sm border-collapse">
+            <thead><tr class="border-b border-brand-border">
+              <th class="text-left py-3 px-4 text-xs uppercase tracking-wider text-slate-500 font-semibold">Attribute</th>
+              <th class="text-left py-3 px-4 text-xs uppercase tracking-wider text-brand-emerald font-semibold">Standalone (Local)</th>
+              <th class="text-left py-3 px-4 text-xs uppercase tracking-wider text-brand-cyan font-semibold">Remote Bridge</th>
+            </tr></thead>
+            <tbody class="divide-y divide-brand-border/40">
+              <tr class="hover:bg-slate-900/40"><td class="py-3 px-4 text-slate-400">Rule storage</td><td class="py-3 px-4 text-slate-200">Device memory (synced workspace JSON)</td><td class="py-3 px-4 text-slate-200">SQLite on Python server</td></tr>
+              <tr class="hover:bg-slate-900/40"><td class="py-3 px-4 text-slate-400">Evaluation runtime</td><td class="py-3 px-4 text-slate-200">Dart (on-device)</td><td class="py-3 px-4 text-slate-200">Python — <code class="text-brand-cyan font-mono text-xs">InterceptEngine</code></td></tr>
+              <tr class="hover:bg-slate-900/40"><td class="py-3 px-4 text-slate-400">Network dependency</td><td class="py-3 px-4 text-brand-emerald font-semibold">None</td><td class="py-3 px-4 text-slate-200">HTTP reachability to server</td></tr>
+              <tr class="hover:bg-slate-900/40"><td class="py-3 px-4 text-slate-400">Live dashboard telemetry</td><td class="py-3 px-4 text-slate-500">Not available</td><td class="py-3 px-4 text-brand-cyan font-semibold">Socket.IO push events</td></tr>
+              <tr class="hover:bg-slate-900/40"><td class="py-3 px-4 text-slate-400">Python plugin support</td><td class="py-3 px-4 text-slate-500">Not available</td><td class="py-3 px-4 text-brand-cyan font-semibold">Full decorator API</td></tr>
+              <tr class="hover:bg-slate-900/40"><td class="py-3 px-4 text-slate-400">Workspace sync</td><td class="py-3 px-4 text-slate-200">Pulled via <code class="text-brand-cyan font-mono text-xs">GET /api/sync/workspace</code></td><td class="py-3 px-4 text-slate-200">Posted via <code class="text-brand-cyan font-mono text-xs">POST /api/sync/workspace</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex gap-2 bg-brand-panel p-1 rounded-xl border border-brand-border w-fit mb-6">
+          <button @click="activeTab='remote'" :class="activeTab==='remote'?'bg-brand-cyan text-black font-bold':'text-slate-400 hover:text-white'" class="px-5 py-2 rounded-lg text-sm transition">Remote Bridge (Python)</button>
+          <button @click="activeTab='local'" :class="activeTab==='local'?'bg-brand-emerald text-black font-bold':'text-slate-400 hover:text-white'" class="px-5 py-2 rounded-lg text-sm transition">Standalone (Dart)</button>
+        </div>
+
+        <div x-show="activeTab==='remote'" class="space-y-4">
+          <div class="bg-brand-panel p-5 rounded-2xl border border-brand-border">
+            <div class="text-xs font-mono text-slate-500 mb-3">engine.py — InterceptEngine.process_request()</div>
+            <pre><code class="language-python">def process_request(self, payload):
+    url, method = payload.get("url",""), payload.get("method","")
+    headers = dict(payload.get("headers", {}) or {})
+    body    = payload.get("body", "")
+    flow_id = payload.get("flowId")
+
+    # Phase 1: Programmatic inspectors (run before SQLite rules)
+    for insp in self.inspectors:
+        if insp['phase'] not in ('Request', 'Both'): continue
+        if self._match_pattern(insp['pattern'], url):
+            result = insp['func'](flow_id, "Request", headers, body)
+            if result and isinstance(result, tuple) and len(result) == 2:
+                headers, body = result
+
+    # Phase 2: SQLite rules in deterministic precedence order
+    for rule in self._get_matching_rules(url, method, "Request"):
+        action = rule.get("actionType")
+        if   action == "BLOCK":
+            return {"action":"BLOCK","modified":True,"headers":headers,"body":body}
+        elif action == "REDIRECT":
+            return {"action":"REDIRECT","redirectUrl":rule.get("replaceStr",""),
+                    "modified":True,"headers":headers,"body":body}
+        elif action == "MATCH_REPLACE":
+            body = self._apply_match_replace(body,rule.get("matchStr"),rule.get("replaceStr"))
+        elif action == "BODY_REPLACE":
+            body = json.loads(rule.get("replaceStr","{}"))
+        elif action == "HEADER_INJECT":
+            k,v = rule.get("matchStr","").split(":",1)
+            headers[k.strip()] = v.strip()
+        elif action == "EXECUTE_PLUGIN":
+            _,headers,body = self._execute_plugin(rule.get("pluginName"),flow_id,"Request",headers,body)
+
+    return {"action":"ALLOW","modified":False,"headers":headers,"body":body}</code></pre>
+          </div>
+        </div>
+
+        <div x-show="activeTab==='local'" class="space-y-4" style="display:none;">
+          <div class="bg-brand-panel p-5 rounded-2xl border border-brand-border">
+            <div class="text-xs font-mono text-slate-500 mb-3">interceptor_core.dart — local rule evaluation</div>
+            <pre><code class="language-dart">Future&lt;WebResourceResponse?&gt; _evaluateLocalRules(WebResourceRequest request) async {
+  final url = request.url.toString();
+  for (final rule in state.activeRules.where((r) => r.isEnabled)) {
+    if (!rule.matches(url)) continue;
+    switch (rule.actionType) {
+      case ActionType.BLOCK:
+        return WebResourceResponse(
+          statusCode: 403,
+          reasonPhrase: 'Blocked by DittoNet Rule #${rule.id}',
+          headers: {'Content-Type': 'text/plain'},
+          data: Uint8List.fromList(utf8.encode('Request blocked.')),
+        );
+      case ActionType.REDIRECT:
+        await _controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(rule.redirectUrl!)));
+        return WebResourceResponse(statusCode: 302, headers: {});
+      default:
+        break;
+    }
+  }
+  return null; // No terminal rule matched — allow unmodified
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- RULE ACTION REFERENCE -->
+      <div x-show="activeSection==='rules'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" style="display:none;">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Interception Engine</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">Rule Action Reference</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">Rules are stored in SQLite and matched against traffic using wildcard patterns (<code class="text-brand-cyan font-mono text-sm">*</code> expands to <code class="text-brand-cyan font-mono text-sm">.*</code> in regex). Each rule has a <code class="text-brand-cyan font-mono text-sm">phase</code> (Request | Response | Both) and a <code class="text-brand-cyan font-mono text-sm">method</code> filter (ANY or a specific HTTP verb).</p>
+        </div>
+        <div class="space-y-4">
+
+          <div class="bg-brand-panel border border-red-500/30 rounded-2xl p-5">
+            <div class="flex items-center gap-3 mb-3"><span class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 font-mono text-xs font-bold border border-red-500/20">BLOCK</span><span class="text-xs text-slate-500">Terminal · Request &amp; Response</span></div>
+            <p class="text-sm text-slate-400 mb-3">Immediately terminates request dispatch and returns a synthetic <code class="text-brand-cyan font-mono">HTTP 403</code> to the WebView. No upstream connection is made. Subsequent rules for the same request are not evaluated.</p>
+            <pre><code class="language-python">return {"action": "BLOCK", "modified": True, "headers": headers, "body": body}</code></pre>
+          </div>
+
+          <div class="bg-brand-panel border border-brand-cyan/20 rounded-2xl p-5">
+            <div class="flex items-center gap-3 mb-3"><span class="px-2.5 py-1 rounded-lg bg-brand-cyan/10 text-brand-cyan font-mono text-xs font-bold border border-brand-cyan/20">REDIRECT</span><span class="text-xs text-slate-500">Terminal · Request phase</span></div>
+            <p class="text-sm text-slate-400 mb-3">Returns a redirect instruction. The <code class="text-brand-cyan font-mono">redirectUrl</code> field in the response contains the value of the rule's <code class="text-brand-cyan font-mono">replaceStr</code>. The mobile client loads the alternate URL in the WebView.</p>
+            <pre><code class="language-python">return {"action": "REDIRECT", "redirectUrl": rule.get("replaceStr"), "modified": True}</code></pre>
+          </div>
+
+          <div class="bg-brand-panel border border-brand-emerald/20 rounded-2xl p-5">
+            <div class="flex items-center gap-3 mb-3"><span class="px-2.5 py-1 rounded-lg bg-brand-emerald/10 text-brand-emerald font-mono text-xs font-bold border border-brand-emerald/20">MATCH_REPLACE</span><span class="text-xs text-slate-500">Non-terminal · Request &amp; Response</span></div>
+            <p class="text-sm text-slate-400 mb-3">Performs exact-string substitution on the body. CRLF sequences are normalized to <code class="text-brand-cyan font-mono">\n</code> before matching. If the body is a JSON object (dict), it is serialized to a string before substitution and re-parsed afterward.</p>
+            <pre><code class="language-python">def _apply_match_replace(self, body, match_str, replace_str):
+    if isinstance(body, str):
+        return body.replace('\r\n','\n').replace(match_str, replace_str)
+    body_str = json.dumps(body).replace('\r\n','\n').replace(match_str, replace_str)
+    return json.loads(body_str)</code></pre>
+          </div>
+
+          <div class="bg-brand-panel border border-brand-purple/20 rounded-2xl p-5">
+            <div class="flex items-center gap-3 mb-3"><span class="px-2.5 py-1 rounded-lg bg-brand-purple/10 text-brand-purple font-mono text-xs font-bold border border-brand-purple/20">BODY_REPLACE</span><span class="text-xs text-slate-500">Non-terminal · Request &amp; Response</span></div>
+            <p class="text-sm text-slate-400 mb-3">Replaces the entire body with the content of <code class="text-brand-cyan font-mono">replaceStr</code>. When the original body was JSON, the replacement is parsed first with <code class="text-brand-cyan font-mono">json.loads()</code>, falling back to <code class="text-brand-cyan font-mono">ast.literal_eval()</code> for Python dict literals.</p>
+            <pre><code class="language-python">try:
+    body = json.loads(rule.get("replaceStr", ""))
+except Exception:
+    body = ast.literal_eval(rule.get("replaceStr", ""))  # dict-literal fallback</code></pre>
+          </div>
+
+          <div class="bg-brand-panel border border-yellow-500/20 rounded-2xl p-5">
+            <div class="flex items-center gap-3 mb-3"><span class="px-2.5 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 font-mono text-xs font-bold border border-yellow-500/20">HEADER_INJECT</span><span class="text-xs text-slate-500">Non-terminal · Request &amp; Response</span></div>
+            <p class="text-sm text-slate-400 mb-3">Appends or overwrites a single HTTP header. The <code class="text-brand-cyan font-mono">matchStr</code> field must use the format <code class="text-brand-cyan font-mono">Header-Name: value</code>. Key and value are split on the first colon and whitespace-stripped.</p>
+            <pre><code class="language-python">k, v = rule.get("matchStr", "").split(":", 1)
+headers[k.strip()] = v.strip()
+# Example: "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."</code></pre>
+          </div>
+
+          <div class="bg-brand-panel border border-slate-600/50 rounded-2xl p-5">
+            <div class="flex items-center gap-3 mb-3"><span class="px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-300 font-mono text-xs font-bold border border-slate-600/50">EXECUTE_PLUGIN</span><span class="text-xs text-slate-500">Non-terminal · Request &amp; Response</span></div>
+            <p class="text-sm text-slate-400 mb-3">Invokes a named Python function registered via <code class="text-brand-cyan font-mono">@server.plugin(name)</code>. The plugin receives <code class="text-brand-cyan font-mono">(flow_id, phase, headers, body)</code> and must return <code class="text-brand-cyan font-mono">(headers, body)</code>. The rule's <code class="text-brand-cyan font-mono">pluginName</code> must exactly match the registered name. Unregistered plugin names log a warning and return the payload unmodified.</p>
+            <pre><code class="language-python">@server.plugin("NormalizeCoins")
+def normalize_coins(flow_id, phase, headers, body):
+    if phase == "Response" and isinstance(body, dict) and "coins" in body:
+        body["coins"] = 999999
+    return headers, body</code></pre>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- REST API CONTRACT -->
+      <div x-show="activeSection==='api'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" style="display:none;">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Data &amp; Telemetry</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">REST API Contract</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">All endpoints accept and return <code class="text-brand-cyan font-mono text-sm">application/json</code>. The server binds to <code class="text-brand-cyan font-mono text-sm">0.0.0.0:5000</code> by default. The mobile client uses the interception endpoints; the dashboard uses the rule management and log endpoints.</p>
+        </div>
+        <div class="space-y-5">
+
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono text-xs font-bold">POST</span>
+              <code class="text-sm text-white font-mono">/api/intercept/request</code>
+              <span class="ml-auto text-xs text-slate-500">Mobile → Server · Request phase</span>
+            </div>
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-3">Submitted for every outbound request before upstream dispatch. Returns rule evaluation results with any modified headers and body.</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><div class="text-xs text-slate-500 font-mono mb-2">REQUEST BODY</div>
+                <pre><code class="language-json">{
+  "flowId": "8f9d2a10-4b3c-11ee",
+  "url": "https://api.target.com/v1/login",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer eyJhbG...",
+    "Content-Type": "application/json"
+  },
+  "body": "{\"user_id\": 84920}"
+}</code></pre></div>
+                <div><div class="text-xs text-slate-500 font-mono mb-2">RESPONSE</div>
+                <pre><code class="language-json">// Passthrough (no matching rule)
+{ "action": "ALLOW", "modified": false,
+  "headers": {...}, "body": "{\"user_id\": 84920}" }
+
+// Rule matched: BLOCK
+{ "action": "BLOCK", "modified": true,
+  "headers": {...}, "body": "" }</code></pre></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono text-xs font-bold">POST</span>
+              <code class="text-sm text-white font-mono">/api/intercept/response</code>
+              <span class="ml-auto text-xs text-slate-500">Mobile → Server · Response phase</span>
+            </div>
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-3">Submitted after the upstream server responds. Response-phase rules are evaluated and a <code class="text-brand-cyan font-mono">update_response</code> Socket.IO event is emitted to the dashboard.</p>
+              <pre><code class="language-json">{
+  "flowId": "8f9d2a10-4b3c-11ee",
+  "url": "https://api.target.com/v1/login",
+  "method": "POST",
+  "statusCode": 200,
+  "headers": { "Content-Type": "application/json; charset=utf-8" },
+  "body": "{\"status\":\"success\",\"account_tier\":\"standard\"}"
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+              <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+                <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono text-xs font-bold">GET</span>
+                <code class="text-sm text-white font-mono">/api/health</code>
+              </div>
+              <div class="p-5"><pre><code class="language-json">{ "status": "ok",
+  "version": "1.0",
+  "active_rules": 4 }</code></pre></div>
+            </div>
+            <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+              <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+                <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono text-xs font-bold">GET</span>
+                <code class="text-sm text-white font-mono">/api/plugins</code>
+              </div>
+              <div class="p-5"><pre><code class="language-json">["NormalizeCoins", "OverrideAccountTier"]</code></pre></div>
+            </div>
+          </div>
+
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono text-xs font-bold">GET</span>
+              <span class="px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono text-xs font-bold">POST</span>
+              <code class="text-sm text-white font-mono">/api/rules</code>
+              <span class="ml-auto text-xs text-slate-500">Also: PUT / DELETE /api/rules/&lt;id&gt;</span>
+            </div>
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-3">Full CRUD for the SQLite rule store. POST creates a rule; PUT updates it by ID; DELETE removes it.</p>
+              <pre><code class="language-json">// POST /api/rules — example MATCH_REPLACE rule
+{
+  "targetPattern": "*api/v1/user*",
+  "method": "ANY",
+  "phase": "Response",
+  "actionType": "MATCH_REPLACE",
+  "matchStr": "\"account_tier\":\"standard\"",
+  "replaceStr": "\"account_tier\":\"premium\"",
+  "isEnabled": true
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono text-xs font-bold">POST</span>
+              <code class="text-sm text-white font-mono">/api/replay</code>
+            </div>
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-3">Re-executes a captured HTTP request directly from the server. <code class="text-brand-cyan font-mono">Host</code> and <code class="text-brand-cyan font-mono">Content-Length</code> are stripped automatically. Times out after 10 seconds.</p>
+              <pre><code class="language-json">{ "url": "https://api.target.com/v1/profile",
+  "method": "GET",
+  "headers": { "Authorization": "Bearer eyJhbGciOi..." },
+  "body": "" }</code></pre>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- W3C HAR FORMAT -->
+      <div x-show="activeSection==='har'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" style="display:none;">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Data &amp; Telemetry</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">W3C HAR 1.2 Session Export</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">DittoNet records every intercepted HTTP transaction in the W3C HTTP Archive (HAR) 1.2 format — capturing timing data, full headers, query strings, cookies, status codes, and raw bodies. Exported <code class="text-brand-cyan font-mono text-sm">.har</code> files are compatible with Burp Suite, OWASP ZAP, Charles Proxy, and Postman.</p>
+        </div>
+        <pre><code class="language-json">{
+  "log": {
+    "version": "1.2",
+    "creator": { "name": "DittoNet Mobile Engine", "version": "1.0.0" },
+    "entries": [
+      {
+        "startedDateTime": "2026-07-01T16:43:00.000Z",
+        "time": 138,
+        "request": {
+          "method": "POST",
+          "url": "https://api.target.com/v1/auth/login",
+          "httpVersion": "HTTP/1.1",
+          "headers": [
+            { "name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1..." },
+            { "name": "Content-Type",  "value": "application/json" }
+          ],
+          "queryString": [],
+          "cookies": [],
+          "bodySize": 42,
+          "postData": {
+            "mimeType": "application/json",
+            "text": "{\"username\":\"admin\",\"password\":\"test123\"}"
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "OK",
+          "httpVersion": "HTTP/1.1",
+          "headers": [{ "name": "Content-Type", "value": "application/json; charset=utf-8" }],
+          "cookies": [],
+          "content": {
+            "size": 94,
+            "mimeType": "application/json",
+            "text": "{\"token\":\"eyJhbGciOiJIUz...\",\"role\":\"user\",\"expires_in\":3600}"
+          },
+          "redirectURL": "",
+          "bodySize": 94
+        },
+        "timings": { "send": 2, "wait": 131, "receive": 5 }
+      }
+    ]
+  }
+}</code></pre>
+      </div>
+
+      <!-- JS HOOKS & WORKSPACE -->
+      <div x-show="activeSection==='hooks'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" style="display:none;">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Data &amp; Telemetry</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">JavaScript Hooks &amp; Workspace Sync</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">JavaScript hooks are injected at the <code class="text-brand-cyan font-mono text-sm">DOCUMENT_START</code> lifecycle phase — before the target page's scripts execute or the DOM tree is constructed. Hooks and local rules are bundled in a <strong class="text-slate-200">workspace</strong> document, exchanged between mobile and server via <code class="text-brand-cyan font-mono text-sm">GET /api/sync/workspace</code>.</p>
+        </div>
+        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2"><i data-lucide="file-json" class="w-4 h-4 text-brand-cyan"></i>Workspace Schema</h3>
+        <pre><code class="language-json">{
+  "timestamp": 1751384580000,
+  "local_rules": [
+    {
+      "id": "rule-001",
+      "targetPattern": "*api.target.com/v1/*",
+      "method": "ANY",
+      "phase": "Response",
+      "actionType": "MATCH_REPLACE",
+      "matchStr": "\"role\":\"user\"",
+      "replaceStr": "\"role\":\"admin\"",
+      "isEnabled": true
+    }
+  ],
+  "js_hooks": [
+    {
+      "id": "hook-001",
+      "name": "Disable WebDriver Flag",
+      "targetOrigin": "*",
+      "isEnabled": true,
+      "script": "Object.defineProperty(navigator,'webdriver',{get:()=>false});"
+    },
+    {
+      "id": "hook-002",
+      "name": "Override Geolocation",
+      "targetOrigin": "https://maps.target.com",
+      "isEnabled": true,
+      "script": "navigator.geolocation.getCurrentPosition=(cb)=>cb({coords:{latitude:36.8065,longitude:10.1815}});"
+    }
+  ]
+}</code></pre>
+        <div class="mt-6 bg-brand-panel border border-brand-border rounded-xl p-5 text-sm text-slate-400 leading-relaxed">
+          Hooks are applied via <code class="text-brand-cyan font-mono">evaluateJavascript</code> immediately after the <code class="text-brand-cyan font-mono">onPageStarted</code> event fires, guaranteeing execution before <code class="text-brand-cyan font-mono">DOMContentLoaded</code> and before the page's own <code class="text-brand-cyan font-mono">&lt;script&gt;</code> tags run. A <code class="text-brand-cyan font-mono">targetOrigin</code> value of <code class="text-brand-cyan font-mono">"*"</code> applies the hook to all origins.
+        </div>
+      </div>
+
+      <!-- PYTHON PLUGIN API -->
+      <div x-show="activeSection==='plugins'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" style="display:none;">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Extensibility</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">Python Plugin API</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl"><strong class="text-slate-200">Inspectors</strong> execute automatically on every matching request or response and run before SQLite rules. <strong class="text-slate-200">Plugins</strong> are registered by name and invoked only when a dashboard rule with <code class="text-brand-cyan font-mono text-sm">EXECUTE_PLUGIN</code> references them.</p>
+        </div>
+        <div class="space-y-6">
+          <div>
+            <h3 class="text-sm font-bold text-white mb-1 flex items-center gap-2"><i data-lucide="search" class="w-4 h-4 text-brand-cyan"></i>Inspector Decorator</h3>
+            <div class="text-xs text-slate-500 mb-3 font-mono">@server.inspector(pattern, method="ANY", phase="Both")</div>
+            <pre><code class="language-python">@server.inspector(pattern="*api/v1/auth*", method="POST", phase="Both")
+def audit_auth_traffic(flow_id, phase, headers, body):
+    """Logs every auth request/response and tags responses."""
+    print(f"[{phase}] Auth flow: {flow_id}")
+    if phase == "Response" and isinstance(headers, dict):
+        headers["X-Ditto-Audited"] = "true"
+    return headers, body  # Must always return (headers, body)</code></pre>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white mb-1 flex items-center gap-2"><i data-lucide="plug" class="w-4 h-4 text-brand-purple"></i>Plugin Decorator</h3>
+            <div class="text-xs text-slate-500 mb-3 font-mono">@server.plugin(name)</div>
+            <pre><code class="language-python">@server.plugin("OverrideAccountTier")
+def override_account_tier(flow_id, phase, headers, body):
+    """
+    Assign to a rule via the dashboard (actionType: EXECUTE_PLUGIN,
+    pluginName: OverrideAccountTier) targeting account/session endpoints.
+    """
+    if phase == "Response" and isinstance(body, dict):
+        if "account_tier" in body:
+            body["account_tier"] = "enterprise"
+    return headers, body  # Must always return (headers, body)
+
+if __name__ == "__main__":
+    server.run()  # Binds to 0.0.0.0:5000</code></pre>
+          </div>
+          <div class="bg-brand-panel border border-yellow-500/20 rounded-xl p-4 text-xs text-slate-400">
+            <span class="text-yellow-400 font-mono font-bold">NOTE &nbsp;</span>If a rule references a plugin name that is not registered, the engine logs a warning and returns the payload unmodified without raising an exception.
+          </div>
+        </div>
+      </div>
+
+      <!-- QUICKSTART -->
+      <div x-show="activeSection==='quickstart'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" style="display:none;">
+        <div class="border-b border-brand-border pb-6 mb-8">
+          <div class="text-xs font-mono text-brand-cyan uppercase tracking-widest mb-2">Extensibility</div>
+          <h1 class="text-3xl font-extrabold text-white mb-3">Quickstart</h1>
+          <p class="text-slate-400 leading-relaxed max-w-3xl">Deploy the Python server and build the Android client in two steps. No root access, system certificates, or iptables configuration required.</p>
+        </div>
+        <div class="space-y-5">
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="w-6 h-6 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan font-mono text-xs font-bold">1</span>
+              <span class="text-sm font-semibold text-white">Deploy Ditto Server</span>
+            </div>
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-3">Creates a Python virtual environment, installs Flask and Flask-SocketIO, and launches the server. Dashboard available at <code class="text-brand-cyan font-mono">http://localhost:5000</code>.</p>
+              <pre><code class="language-bash">cd "Ditto Server"
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # macOS / Linux
+pip install -r requirements.txt
+python test_implementation.py</code></pre>
+            </div>
+          </div>
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="w-6 h-6 rounded-full bg-brand-purple/10 border border-brand-purple/30 flex items-center justify-center text-brand-purple font-mono text-xs font-bold">2</span>
+              <span class="text-sm font-semibold text-white">Build Ditto Mobile</span>
+            </div>
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-3">Fetches Dart/Flutter dependencies, runs static analysis, and produces a release APK. Deployable to any Android device without root or a custom recovery.</p>
+              <pre><code class="language-bash">cd "Ditto Mobile"
+flutter pub get
+flutter analyze --no-fatal-infos
+flutter build apk --release
+# Output: build/app/outputs/flutter-apk/app-release.apk</code></pre>
+            </div>
+          </div>
+          <div class="bg-brand-panel border border-brand-border rounded-2xl overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-3 border-b border-brand-border bg-slate-900/50">
+              <span class="w-6 h-6 rounded-full bg-brand-emerald/10 border border-brand-emerald/30 flex items-center justify-center text-brand-emerald font-mono text-xs font-bold">3</span>
+              <span class="text-sm font-semibold text-white">Connect &amp; Configure</span>
+            </div>
+            <div class="p-5">
+              <p class="text-xs text-slate-400 mb-3">In Ditto Mobile, enter the server's local IP in Remote Bridge mode. The app verifies connectivity via <code class="text-brand-cyan font-mono">GET /api/health</code> and syncs the workspace via <code class="text-brand-cyan font-mono">GET /api/sync/workspace</code>.</p>
+              <div class="bg-brand-dark rounded-lg p-4 font-mono text-xs space-y-1.5">
+                <div><span class="text-slate-500 w-28 inline-block">Dashboard:</span><span class="text-brand-cyan">http://&lt;server-ip&gt;:5000/</span></div>
+                <div><span class="text-slate-500 w-28 inline-block">Health check:</span><span class="text-brand-emerald">GET http://&lt;server-ip&gt;:5000/api/health</span></div>
+                <div><span class="text-slate-500 w-28 inline-block">Workspace:</span><span class="text-brand-purple">GET http://&lt;server-ip&gt;:5000/api/sync/workspace</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+
+
+  <footer class="border-t border-brand-border py-8 bg-brand-dark mt-auto text-center text-xs text-slate-500 font-mono">
+    DittoNet Core Infrastructure • High-Throughput Mobile Interception Bridge & W3C HAR Telemetry Pipeline
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-dart.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Initialise Lucide icons
+      if (window.lucide) lucide.createIcons();
+
+      // Fetch live GitHub star count for MassoudiR/DittoNet
+      const CACHE_KEY = 'ditto_gh_stars';
+      const CACHE_TTL = 3600 * 1000; // 1 hour in ms
+      const badges   = document.querySelectorAll('.gh-star-count');
+
+      function applyCount(n) {
+        const label = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
+        badges.forEach(el => el.textContent = '★ ' + label);
+      }
+
+      // Try cache first to avoid hitting the rate limit on every page load
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+          applyCount(cached.stars);
+          return;
+        }
+      } catch (_) {}
+
+      fetch('https://api.github.com/repos/MassoudiR/DittoNet')
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(data => {
+          const stars = data.stargazers_count;
+          applyCount(stars);
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ stars, ts: Date.now() })); } catch(_) {}
+        })
+        .catch(() => {
+          // Silently keep the ★ placeholder — do not show an error to the user
+        });
+    });
+  </script>
+</body>
+</html>
+
+
+
+
