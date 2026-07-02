@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io' show HttpDate;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -37,7 +37,8 @@ class InterceptorCore {
   ];
 
   final List<String> bypassedDomains = [
-    'recaptcha', 'gstatic.com', 'google.com', 'accounts.google.com'
+    'recaptcha', 'gstatic.com', 'google.com/recaptcha', 'accounts.google.com',
+    'hcaptcha.com', 'challenges.cloudflare.com', 'turnstile', 'arkoselabs.com'
   ];
 
   InterceptorCore(this.state) {
@@ -114,33 +115,24 @@ class InterceptorCore {
   }
 
   bool _shouldBypass(String urlStr) {
-    if (state.isRecordingTraffic) return false;
     final url = Uri.tryParse(urlStr);
     if (url == null) return true; // Invalid URL, let webview handle it
 
     final path = url.path.toLowerCase();
     final host = url.host.toLowerCase();
 
-    // Captcha & Domain Bypass (highest priority)
+    // Captcha & Security Challenge Domains MUST always bypass Dart MITM interception
+    // Otherwise Dart HTTP client TLS fingerprinting (JA3/JA4) mismatch breaks verification.
     for (var domain in bypassedDomains) {
-      if (host.contains(domain)) {
+      if (host.contains(domain) || urlStr.toLowerCase().contains(domain)) {
         return true;
       }
     }
 
-    // Check if it matches any user-defined rule first (Rules override bypass)
-    // Here we do a basic check. The backend will do the real check, 
-    // but if it matches a local rule, we MUST NOT bypass.
-    for (var rule in state.localRules) {
-      if (rule.isActive && urlStr.contains(rule.targetPattern)) {
-        return false; // Matched a rule, do NOT bypass
-      }
-    }
-
-    // Default bypass for heavy assets
+    // Default bypass for heavy static media assets
     for (var ext in bypassedExtensions) {
       if (path.endsWith(ext)) {
-        return true; // Explicitly execute return null fallback
+        return true;
       }
     }
     return false;
@@ -192,14 +184,30 @@ class InterceptorCore {
     }
   }
 
-  Future<WebResourceResponse?> interceptRequest(WebResourceRequest request) async {
+  Future<WebResourceResponse?> interceptPostPayload({
+    required String urlStr,
+    required String method,
+    required Map<String, String> headers,
+    required String bodyPayload,
+    bool isMainFrame = false,
+  }) async {
+    final request = WebResourceRequest(
+      url: WebUri(urlStr),
+      method: method,
+      headers: headers,
+      isForMainFrame: isMainFrame,
+      hasGesture: true,
+    );
+    return await interceptRequest(request, initialBody: bodyPayload);
+  }
+
+  Future<WebResourceResponse?> interceptRequest(WebResourceRequest request, {String? initialBody}) async {
     if (state.isLocalEngineEnabled || state.connectionStatus == ConnectionStatus.red) {
-      return await executeLocalRulesEngine(request);
+      return await executeLocalRulesEngine(request, initialBody: initialBody);
     }
 
     final urlStr = request.url.toString();
 
-    
     // 1. Check bypass logic
     if (_shouldBypass(urlStr)) {
       return null; // Return null to let the WebView load the resource normally
@@ -209,9 +217,7 @@ class InterceptorCore {
     final method = request.method ?? 'GET';
     final headers = request.headers?.cast<String, String>() ?? {};
 
-    // Note: Android WebView's shouldInterceptRequest does not expose the request body.
-    // The flutter_inappwebview WebResourceRequest object does not have a 'body' property.
-    String requestBodyPayload = "";
+    String requestBodyPayload = initialBody ?? "";
 
     state.addTrafficLog(TrafficLog(
       flowId: flowId,
@@ -362,16 +368,7 @@ class InterceptorCore {
     }
 
     // 6. Cookie Synchronization (Dart HTTP -> WebView)
-    if (resHeaders.containsKey('set-cookie')) {
-       // Note: http package collapses multiple Set-Cookie headers into one comma-separated string.
-       // It requires careful parsing to handle correctly. For simplicity here, we assume single cookie or custom parsing.
-       final cookieStr = resHeaders['set-cookie'];
-       if (cookieStr != null) {
-          // A robust implementation would parse the Set-Cookie string.
-          // Using flutter_inappwebview CookieManager
-          await cookieManager.setCookie(url: WebUri(urlStr), name: 'magic_cookie', value: cookieStr);
-       }
-    }
+    await syncSetCookiesToWebView(urlStr, resHeaders);
 
     // MIME Type Safety
     String contentType = "";
@@ -395,7 +392,7 @@ class InterceptorCore {
       contentType: contentType,
       contentEncoding: contentEncoding,
       statusCode: actualResponse.statusCode,
-      reasonPhrase: actualResponse.reasonPhrase ?? 'OK',
+      reasonPhrase: (actualResponse.reasonPhrase == null || actualResponse.reasonPhrase!.trim().isEmpty) ? 'OK' : actualResponse.reasonPhrase!,
       headers: resHeaders,
       data: responseBody,
     );
@@ -417,7 +414,7 @@ class InterceptorCore {
   }
 
   // --- LOCAL OFFLINE STANDALONE RULES ENGINE ---
-  Future<WebResourceResponse?> executeLocalRulesEngine(WebResourceRequest request) async {
+  Future<WebResourceResponse?> executeLocalRulesEngine(WebResourceRequest request, {String? initialBody}) async {
     final urlStr = request.url.toString();
     if (_shouldBypass(urlStr)) {
       return null;
@@ -459,7 +456,7 @@ class InterceptorCore {
       headers['User-Agent'] = state.currentUserAgent;
     }
 
-    String requestBodyPayload = "";
+    String requestBodyPayload = initialBody ?? "";
 
     // --- Phase 1: REQUEST Rules ---
     for (var rule in matchedRules) {
@@ -563,9 +560,14 @@ class InterceptorCore {
       }
     }
 
-    if (isModified) {
-      state.addTrafficLog(TrafficLog(flowId: flowId, url: urlStr, method: method, type: 'Local Modified', timestamp: DateTime.now()));
-    }
+    state.addTrafficLog(TrafficLog(
+      flowId: flowId,
+      url: urlStr,
+      method: method,
+      type: isModified ? 'Local Modified (Res)' : 'Completed (Res)',
+      statusCode: actualResponse.statusCode,
+      timestamp: DateTime.now(),
+    ));
 
     // Strip compression and length headers because Dart http Client decompresses bodyBytes automatically
     resHeaders.remove('content-encoding');
@@ -580,10 +582,7 @@ class InterceptorCore {
     resHeaders.remove('Content-Security-Policy-Report-Only');
 
     // Cookie Synchronization (Dart HTTP -> WebView)
-    final setCookie = resHeaders['set-cookie'];
-    if (setCookie != null) {
-      await cookieManager.setCookie(url: WebUri(urlStr), name: 'magic_cookie', value: setCookie);
-    }
+    await syncSetCookiesToWebView(urlStr, resHeaders);
 
     String contentType = "";
     String contentEncoding = "utf-8";
@@ -604,7 +603,7 @@ class InterceptorCore {
       contentType: contentType,
       contentEncoding: contentEncoding,
       statusCode: actualResponse.statusCode,
-      reasonPhrase: actualResponse.reasonPhrase ?? 'OK',
+      reasonPhrase: (actualResponse.reasonPhrase == null || actualResponse.reasonPhrase!.trim().isEmpty) ? 'OK' : actualResponse.reasonPhrase!,
       headers: resHeaders,
       data: responseBodyBytes,
     );
@@ -703,6 +702,126 @@ class InterceptorCore {
       headers: {},
       data: Uint8List.fromList(utf8.encode('Local Proxy Error: $e')),
     );
+  }
+
+  static Future<void> syncSetCookiesToWebView(String urlStr, Map<String, String> resHeaders) async {
+    final rawSetCookie = resHeaders['set-cookie'] ?? resHeaders['Set-Cookie'];
+    if (rawSetCookie == null || rawSetCookie.trim().isEmpty) return;
+
+    final cookieManager = CookieManager.instance();
+    final url = WebUri(urlStr);
+
+    final List<String> rawCookies = _splitSetCookieString(rawSetCookie);
+
+    for (final raw in rawCookies) {
+      if (raw.trim().isEmpty) continue;
+      final parsed = _parseSingleSetCookie(raw);
+      if (parsed != null && parsed['name']!.isNotEmpty) {
+        try {
+          await cookieManager.setCookie(
+            url: url,
+            name: parsed['name']!,
+            value: parsed['value']!,
+            domain: parsed['domain'],
+            path: parsed['path'] ?? "/",
+            expiresDate: parsed['expiresDate'] != null ? int.tryParse(parsed['expiresDate']!) : null,
+            maxAge: parsed['maxAge'] != null ? int.tryParse(parsed['maxAge']!) : null,
+            isSecure: parsed['isSecure'] == 'true',
+            isHttpOnly: parsed['isHttpOnly'] == 'true',
+            sameSite: parsed['sameSite'] == 'Lax'
+                ? HTTPCookieSameSitePolicy.LAX
+                : (parsed['sameSite'] == 'Strict'
+                    ? HTTPCookieSameSitePolicy.STRICT
+                    : (parsed['sameSite'] == 'None' ? HTTPCookieSameSitePolicy.NONE : null)),
+          );
+        } catch (e) {
+          try {
+            await cookieManager.setCookie(url: url, name: parsed['name']!, value: parsed['value']!);
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
+  static List<String> _splitSetCookieString(String header) {
+    final List<String> cookies = [];
+    final List<String> parts = header.split(',');
+    String currentCookie = "";
+
+    for (int i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      if (currentCookie.isEmpty) {
+        currentCookie = part;
+      } else {
+        final trimmed = part.trimLeft();
+        final equalsIndex = trimmed.indexOf('=');
+        final isDateContinuation = RegExp(r'^\d{1,2}\s+[A-Za-z]{3}').hasMatch(trimmed) ||
+            RegExp(r'^[A-Za-z]{3}\s+\d{1,2}').hasMatch(trimmed) ||
+            RegExp(r'^\d{2}-\d{2}-\d{2}').hasMatch(trimmed) ||
+            (equalsIndex == -1 && !trimmed.toLowerCase().startsWith('secure') && !trimmed.toLowerCase().startsWith('httponly'));
+
+        if (isDateContinuation) {
+          currentCookie += ",$part";
+        } else {
+          cookies.add(currentCookie.trim());
+          currentCookie = part;
+        }
+      }
+    }
+    if (currentCookie.trim().isNotEmpty) {
+      cookies.add(currentCookie.trim());
+    }
+    return cookies;
+  }
+
+  static Map<String, String>? _parseSingleSetCookie(String rawCookie) {
+    final parts = rawCookie.split(';');
+    if (parts.isEmpty) return null;
+
+    final firstPart = parts[0].trim();
+    final firstEquals = firstPart.indexOf('=');
+    if (firstEquals == -1) return null;
+
+    final name = firstPart.substring(0, firstEquals).trim();
+    final value = firstPart.substring(firstEquals + 1).trim();
+    if (name.isEmpty) return null;
+
+    final result = <String, String>{
+      'name': name,
+      'value': value,
+    };
+
+    for (int i = 1; i < parts.length; i++) {
+      final attr = parts[i].trim();
+      if (attr.isEmpty) continue;
+      final equalsIdx = attr.indexOf('=');
+      if (equalsIdx != -1) {
+        final key = attr.substring(0, equalsIdx).trim().toLowerCase();
+        final val = attr.substring(equalsIdx + 1).trim();
+        if (key == 'path') {
+          result['path'] = val;
+        } else if (key == 'domain') {
+          result['domain'] = val;
+        } else if (key == 'max-age') {
+          result['maxAge'] = val;
+        } else if (key == 'expires') {
+          try {
+            final dt = HttpDate.parse(val);
+            result['expiresDate'] = dt.millisecondsSinceEpoch.toString();
+          } catch (_) {}
+        } else if (key == 'samesite') {
+          result['sameSite'] = val;
+        }
+      } else {
+        final flag = attr.toLowerCase();
+        if (flag == 'secure') {
+          result['isSecure'] = 'true';
+        } else if (flag == 'httponly') {
+          result['isHttpOnly'] = 'true';
+        }
+      }
+    }
+    return result;
   }
 
   void dispose() {

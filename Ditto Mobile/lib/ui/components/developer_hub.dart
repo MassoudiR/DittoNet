@@ -135,6 +135,14 @@ class _SettingsTab extends StatelessWidget {
             if (val != null) state.updateUserAgent(val);
           },
         ),
+        if (state.currentUserAgent == 'Default Android Chrome' || state.currentUserAgent.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Text(
+              'Active Device UA: ${state.sanitizedNativeUserAgent}',
+              style: const TextStyle(color: Colors.tealAccent, fontSize: 11),
+            ),
+          ),
         const Divider(color: Colors.white24),
         SwitchListTile(
           title: Text(state.isLocalMode ? 'Local Mode (Active)' : 'Remote Server Mode', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

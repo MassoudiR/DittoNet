@@ -34,6 +34,7 @@ class BrowserState extends ChangeNotifier {
   bool canGoBack = false;
   bool canGoForward = false;
   late String currentUserAgent;
+  String sanitizedNativeUserAgent = 'Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
   late bool isDevToolsEnabled;
   late String devToolsEngine;
   
@@ -131,6 +132,21 @@ class BrowserState extends ChangeNotifier {
   BrowserState(this.prefs) {
     _loadState();
     _initTabs();
+    initNativeUserAgent();
+  }
+
+  Future<void> initNativeUserAgent() async {
+    try {
+      final nativeUa = await InAppWebViewController.getDefaultUserAgent();
+      if (nativeUa.isNotEmpty) {
+        String cleaned = nativeUa;
+        cleaned = cleaned.replaceAll('; wv)', ')');
+        cleaned = cleaned.replaceAll('; wv', '');
+        cleaned = cleaned.replaceAll(RegExp(r'Version/\d+(?:\.\d+)*\s+'), '');
+        sanitizedNativeUserAgent = cleaned.trim();
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   void _loadState() {
@@ -340,14 +356,29 @@ class BrowserState extends ChangeNotifier {
     bool? back,
     bool? forward,
   }) {
-    if (url != null) {
+    bool changed = false;
+    if (url != null && currentUrl != url) {
       currentUrl = url;
       if (currentTab != null) currentTab!.url = url;
+      changed = true;
     }
-    if (progress != null) loadingProgress = progress;
-    if (back != null) canGoBack = back;
-    if (forward != null) canGoForward = forward;
-    notifyListeners();
+    if (progress != null) {
+      if ((loadingProgress - progress).abs() >= 0.05 || progress >= 1.0 || progress <= 0.0) {
+        loadingProgress = progress;
+        changed = true;
+      }
+    }
+    if (back != null && canGoBack != back) {
+      canGoBack = back;
+      changed = true;
+    }
+    if (forward != null && canGoForward != forward) {
+      canGoForward = forward;
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
   }
 
   void updateUserAgent(String ua) {
@@ -451,12 +482,20 @@ class BrowserState extends ChangeNotifier {
     prefs.setString('visitedHistory', jsonEncode(visitedHistory.map((e) => e.toJson()).toList()));
   }
 
+  bool _pendingTrafficLogNotify = false;
+
   void addTrafficLog(TrafficLog log) {
     if (trafficLogs.length > 1000) {
       trafficLogs.removeAt(0);
     }
     trafficLogs.add(log);
-    notifyListeners(); 
+    if (!_pendingTrafficLogNotify) {
+      _pendingTrafficLogNotify = true;
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _pendingTrafficLogNotify = false;
+        notifyListeners();
+      });
+    }
   }
 
   void clearLogs() {

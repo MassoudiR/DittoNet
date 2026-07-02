@@ -5,7 +5,6 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
@@ -50,6 +49,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   bool _isDragging = false;
   Offset? _dragStartOffset;
   Offset? _dragStartIconOffset;
+
 
   Future<void> _openTabSwitcher() async {
     final state = context.read<BrowserState>();
@@ -122,11 +122,236 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
-  String _generateMasterHookScript(BrowserState state) {
-    final activeScripts = state.hookScripts.where((s) => s.isActive).toList();
-    if (activeScripts.isEmpty) return '';
+  static const String _postPayloadInterceptorScript = """
+(function() {
+  if (window.__ditto_post_hooked) return;
+  window.__ditto_post_hooked = true;
 
+  try {
+    if (Object.defineProperty) {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    }
+  } catch(_) {}
+
+  function isCaptchaDomain(u) {
+    if (!u) return false;
+    let lower = String(u).toLowerCase();
+    return lower.includes('recaptcha') || 
+           lower.includes('gstatic.com') || 
+           lower.includes('google.com/recaptcha') || 
+           lower.includes('hcaptcha.com') || 
+           lower.includes('challenges.cloudflare.com') || 
+           lower.includes('turnstile') || 
+           lower.includes('arkoselabs.com');
+  }
+
+  if (isCaptchaDomain(window.location.href)) return;
+
+  async function helperBodyToString(body) {
+    if (!body) return "";
+    if (typeof body === 'string') return body;
+    if (body instanceof URLSearchParams) return body.toString();
+    if (body instanceof FormData) {
+      const params = new URLSearchParams();
+      body.forEach((val, key) => params.append(key, val));
+      return params.toString();
+    }
+    if (body instanceof Blob) {
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsText(body);
+      });
+    }
+    try {
+      return JSON.stringify(body);
+    } catch(e) {
+      return String(body);
+    }
+  }
+
+  // 1. Hook window.fetch
+  const origFetch = window.fetch;
+  window.fetch = async function(input, init) {
+    let url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+    let method = (init && init.method) ? init.method.toUpperCase() : (input && input.method ? input.method.toUpperCase() : 'GET');
+    
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+      let fullUrl = new URL(url, window.location.href).href;
+      if (isCaptchaDomain(fullUrl)) {
+        return origFetch.apply(this, arguments);
+      }
+
+      let headers = {};
+      if (init && init.headers) {
+        if (init.headers instanceof Headers) {
+          init.headers.forEach((val, key) => headers[key] = val);
+        } else if (Array.isArray(init.headers)) {
+          init.headers.forEach(pair => headers[pair[0]] = pair[1]);
+        } else {
+          headers = Object.assign({}, init.headers);
+        }
+      } else if (input && input.headers instanceof Headers) {
+        input.headers.forEach((val, key) => headers[key] = val);
+      }
+      
+      let bodyData = (init && init.body !== undefined) ? init.body : (input && input.body ? input.body : null);
+      let bodyStr = await helperBodyToString(bodyData);
+      
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        const res = await window.flutter_inappwebview.callHandler('interceptPostPayload', {
+          url: fullUrl,
+          method: method,
+          headers: headers,
+          body: bodyStr
+        });
+        if (res) {
+          let resHeaders = new Headers(res.headers || {});
+          return new Response(res.body || "", {
+            status: res.statusCode || 200,
+            statusText: res.reasonPhrase || "OK",
+            headers: resHeaders
+          });
+        }
+      }
+    }
+    return origFetch.apply(this, arguments);
+  };
+
+  // 2. Hook XMLHttpRequest
+  const origXhrOpen = XMLHttpRequest.prototype.open;
+  const origXhrSend = XMLHttpRequest.prototype.send;
+  const origXhrSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this._dittoMethod = (method || 'GET').toUpperCase();
+    try {
+      this._dittoUrl = new URL(url, window.location.href).href;
+    } catch(_) {
+      this._dittoUrl = url;
+    }
+    this._dittoHeaders = {};
+    return origXhrOpen.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.setRequestHeader = function(header, value) {
+    if (this._dittoHeaders) {
+      this._dittoHeaders[header] = value;
+    }
+    return origXhrSetHeader.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.send = function(bodyData) {
+    if (this._dittoMethod === 'POST' || this._dittoMethod === 'PUT' || this._dittoMethod === 'PATCH') {
+      if (isCaptchaDomain(this._dittoUrl)) {
+        return origXhrSend.apply(this, arguments);
+      }
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        helperBodyToString(bodyData).then(bodyStr => {
+          window.flutter_inappwebview.callHandler('interceptPostPayload', {
+            url: this._dittoUrl,
+            method: this._dittoMethod,
+            headers: this._dittoHeaders || {},
+            body: bodyStr
+          }).then(res => {
+            if (res) {
+              Object.defineProperty(this, 'status', { writable: true, value: res.statusCode || 200 });
+              Object.defineProperty(this, 'statusText', { writable: true, value: res.reasonPhrase || "OK" });
+              Object.defineProperty(this, 'readyState', { writable: true, value: 4 });
+              Object.defineProperty(this, 'responseText', { writable: true, value: res.body || "" });
+              Object.defineProperty(this, 'response', { writable: true, value: res.body || "" });
+              
+              let headerStr = "";
+              if (res.headers) {
+                for (let k in res.headers) {
+                  headerStr += k + ": " + res.headers[k] + "\\r\\n";
+                }
+              }
+              this.getAllResponseHeaders = function() { return headerStr; };
+              this.getResponseHeader = function(h) {
+                if (!res.headers) return null;
+                for (let k in res.headers) {
+                  if (k.toLowerCase() === h.toLowerCase()) return res.headers[k];
+                }
+                return null;
+              };
+              
+              if (typeof this.onreadystatechange === 'function') this.onreadystatechange();
+              if (typeof this.onload === 'function') this.onload();
+              this.dispatchEvent(new Event('readystatechange'));
+              this.dispatchEvent(new Event('load'));
+            }
+          });
+        });
+        return;
+      }
+    }
+    return origXhrSend.apply(this, arguments);
+  };
+
+  // 3. Hook HTML Form Submissions
+  async function handleFormSubmit(form) {
+    const method = (form.method || 'GET').toUpperCase();
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+      let actionUrl = form.action ? new URL(form.action, window.location.href).href : window.location.href;
+      if (isCaptchaDomain(actionUrl)) return false;
+
+      const formData = new FormData(form);
+      const urlParams = new URLSearchParams();
+      formData.forEach((val, key) => urlParams.append(key, val));
+      const bodyStr = urlParams.toString();
+      let enctype = form.enctype || 'application/x-www-form-urlencoded';
+      
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        const res = await window.flutter_inappwebview.callHandler('interceptPostPayload', {
+          url: actionUrl,
+          method: method,
+          headers: { 'Content-Type': enctype },
+          body: bodyStr,
+          isFormSubmit: true
+        });
+        if (res) {
+          if (res.redirectUrl) {
+            window.location.href = res.redirectUrl;
+          } else if (res.body) {
+            document.open();
+            document.write(res.body);
+            document.close();
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  document.addEventListener('submit', async function(e) {
+    const form = e.target;
+    if (form && form.tagName === 'FORM' && (form.method || '').toUpperCase() === 'POST') {
+      let actionUrl = form.action ? new URL(form.action, window.location.href).href : window.location.href;
+      if (isCaptchaDomain(actionUrl)) return;
+      e.preventDefault();
+      await handleFormSubmit(form);
+    }
+  }, true);
+
+  const origFormSubmit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function() {
+    let actionUrl = this.action ? new URL(this.action, window.location.href).href : window.location.href;
+    if ((this.method || '').toUpperCase() === 'POST' && !isCaptchaDomain(actionUrl)) {
+      handleFormSubmit(this);
+    } else {
+      origFormSubmit.apply(this, arguments);
+    }
+  };
+})();
+""";
+
+  String _generateMasterHookScript(BrowserState state) {
     final buffer = StringBuffer();
+    buffer.writeln(_postPayloadInterceptorScript);
+
+    final activeScripts = state.hookScripts.where((s) => s.isActive).toList();
     for (final s in activeScripts) {
       final smartRegex = InterceptorCore.smartPatternToRegex(s.targetPattern);
       final escapedPattern = jsonEncode(smartRegex);
@@ -539,17 +764,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
                                     databaseEnabled: true,
                                     javaScriptEnabled: true,
                                     mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
-                                    userAgent: state.currentUserAgent == 'Default Android Chrome' ? '' : state.currentUserAgent,
+                                    userAgent: state.currentUserAgent == 'Default Android Chrome'
+                                        ? state.sanitizedNativeUserAgent
+                                        : state.currentUserAgent,
                                     supportMultipleWindows: true,
                                     javaScriptCanOpenWindowsAutomatically: true,
                                     disableContextMenu: false,
                                     supportZoom: true,
                                   ),
-                                  gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-                                    Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()),
-                                    Factory<HorizontalDragGestureRecognizer>(() => HorizontalDragGestureRecognizer()),
-                                    Factory<LongPressGestureRecognizer>(() => LongPressGestureRecognizer()),
-                                  },
                                   onLongPressHitTestResult: (controller, hitTestResult) async {
                                     final type = hitTestResult.type;
                                     final url = hitTestResult.extra;
@@ -652,6 +874,44 @@ class _BrowserScreenState extends State<BrowserScreen> {
                                       } else {
                                         await controller.loadUrl(urlRequest: URLRequest(url: WebUri('https://google.com')));
                                       }
+                                    });
+                                    controller.addJavaScriptHandler(handlerName: 'interceptPostPayload', callback: (args) async {
+                                      if (args.isEmpty || args[0] == null) return null;
+                                      final data = args[0] as Map<dynamic, dynamic>;
+                                      final urlStr = data['url']?.toString() ?? '';
+                                      final method = data['method']?.toString().toUpperCase() ?? 'POST';
+                                      final rawHeaders = data['headers'] as Map<dynamic, dynamic>? ?? {};
+                                      final headers = rawHeaders.map((k, v) => MapEntry(k.toString(), v.toString()));
+                                      final bodyStr = data['body']?.toString() ?? '';
+                                      final isFormSubmit = data['isFormSubmit'] == true;
+
+                                      final interceptor = context.read<InterceptorCore>();
+                                      final res = await interceptor.interceptPostPayload(
+                                        urlStr: urlStr,
+                                        method: method,
+                                        headers: headers,
+                                        bodyPayload: bodyStr,
+                                        isMainFrame: isFormSubmit,
+                                      );
+
+                                      if (res == null) return null;
+
+                                      String decodedBody = '';
+                                      if (res.data != null) {
+                                        try {
+                                          decodedBody = utf8.decode(res.data!, allowMalformed: true);
+                                        } catch (_) {}
+                                      }
+
+                                      return {
+                                        'statusCode': res.statusCode ?? 200,
+                                        'reasonPhrase': (res.reasonPhrase == null || res.reasonPhrase!.trim().isEmpty) ? 'OK' : res.reasonPhrase!,
+                                        'headers': res.headers ?? {},
+                                        'body': decodedBody,
+                                        'redirectUrl': (res.statusCode == 301 || res.statusCode == 302 || res.statusCode == 303 || res.statusCode == 307 || res.statusCode == 308)
+                                            ? (res.headers?['location'] ?? res.headers?['Location'])
+                                            : null,
+                                      };
                                     });
                                   },
                                   onCreateWindow: (controller, createWindowAction) async {
@@ -783,6 +1043,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                                   shouldInterceptRequest: (controller, request) async {
                                     try {
                                       final urlStr = request.url.toString();
+
                                       if (urlStr.contains('/__dittonet_devtools_font__/')) {
                                         try {
                                           final fontName = urlStr.split('/__dittonet_devtools_font__/')[1].split('.woff')[0];

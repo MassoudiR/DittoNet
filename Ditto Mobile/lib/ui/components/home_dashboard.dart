@@ -315,8 +315,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> with SingleTi
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
                   crossAxisSpacing: 16,
-                  mainAxisSpacing: 24,
-                  childAspectRatio: 0.8,
+                  mainAxisSpacing: 20,
+                  childAspectRatio: 0.72,
                 ),
                 itemCount: state.bookmarks.length + 1, // +1 for the Add button
                 itemBuilder: (context, index) {
@@ -325,17 +325,18 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> with SingleTi
                     return GestureDetector(
                       onTap: () => _showAddBookmarkModal(context),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 60, height: 60,
+                            width: 58, height: 58,
                             decoration: BoxDecoration(
                               color: const Color(0xFF2C2C2C),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Icon(Icons.add, color: Colors.white),
                           ),
-                          const SizedBox(height: 8),
-                          const Text('Add Link', style: TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 6),
+                          const Flexible(child: Text('Add Link', style: TextStyle(fontSize: 12, color: Colors.grey), overflow: TextOverflow.ellipsis, maxLines: 1)),
                         ],
                       ),
                     );
@@ -348,9 +349,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> with SingleTi
                     onTap: () => widget.onNavigate(link.url),
                     onLongPress: () => _showEditDeleteModal(context, index, link),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 60, height: 60,
+                          width: 58, height: 58,
                           decoration: BoxDecoration(
                             color: const Color(0xFF1E1E1E),
                             borderRadius: BorderRadius.circular(16),
@@ -359,8 +361,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> with SingleTi
                           alignment: Alignment.center,
                           child: Text(initial, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.tealAccent)),
                         ),
-                        const SizedBox(height: 8),
-                        Text(link.title, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1),
+                        const SizedBox(height: 6),
+                        Flexible(child: Text(link.title, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1)),
                       ],
                     ),
                   );
